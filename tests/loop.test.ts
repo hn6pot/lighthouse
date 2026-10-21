@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 import { loadTracked, save } from '../hooks/flow/state'
 import { texts } from '../hooks/i18n'
 import { addFolder, addPrLink, CLEANUP_RETRY_MS, cleanNow, forgetNow, refreshConfig, tick, type Context } from '../hooks/loop'
-import type { TreeState, Tracked } from '../hooks/model'
+import type { ReviewRequest, TreeState, Tracked } from '../hooks/model'
 import { fakeHost, type Answer } from './helpers/fake-host'
 
 const t = texts('fr')
@@ -23,12 +23,12 @@ const ctx = (): Context => ({ id: 'me', cwd: '/w', repos: new Map(), lastFetch: 
 
 function actions() {
   const notifications: string[] = []
-  const published: { trees: TreeState[]; events: Tracked[] }[] = []
+  const published: { trees: TreeState[]; events: Tracked[]; reviews: ReviewRequest[] }[] = []
   return {
     notifications, published,
     actions: {
       notify: async (_key: string, text: string) => void notifications.push(text),
-      publish: async (trees: TreeState[], events: Tracked[]) => void published.push({ trees, events }),
+      publish: async (trees: TreeState[], events: Tracked[], reviews: ReviewRequest[]) => void published.push({ trees, events, reviews }),
     },
   }
 }
@@ -131,7 +131,8 @@ test('local repo without a GitHub origin: shown, never queried', async () => {
   await addFolder(h.host, c, '/w/web')
   const a = actions()
   await tick(h.host, c, a.actions)
-  expect(h.calls.some(x => x.line.startsWith('gh '))).toBe(false)
+  // Only the search for the PRs to review, which is about no repo.
+  expect(h.calls.some(x => x.line.startsWith('gh ') && !x.line.startsWith('gh search prs'))).toBe(false)
   expect(a.published[0].trees).toHaveLength(1)
 })
 
@@ -644,4 +645,29 @@ test('the config file is read at the first tick, then again at most once a minut
   h.state.now = 121_000
   await refreshConfig(h.host, c)
   expect(c.config).toEqual({ rules: {}, ghConfigDirs: {} }) // file removed: back to no rules
+})
+
+const TO_REVIEW = [{ number: 9, title: 'Add search', url: 'https://github.com/acme/api/pull/9', isDraft: false, updatedAt: new Date(0).toISOString(), repository: { nameWithOwner: 'acme/api' }, author: { login: 'alice' } }]
+
+test('the PRs to review are published with their facts, and the last list stays while gh fails', async () => {
+  let fails = false
+  const h = fakeHost([[/^gh search prs/, () => (fails ? { exitCode: 1, stderr: 'offline' } : { stdout: JSON.stringify(TO_REVIEW) })]], {}, 3_600_000)
+  const c = ctx()
+  const a = actions()
+  await tick(h.host, c, a.actions)
+  expect(a.published[0].reviews).toEqual([
+    { slug: 'acme/api', number: 9, title: 'Add search', url: 'https://github.com/acme/api/pull/9', author: 'alice', draft: false, updatedAt: 0, facts: 'acme/api · par alice · active il y a 1 h' },
+  ])
+  fails = true
+  await tick(h.host, c, a.actions)
+  expect(a.published[1].reviews).toEqual(a.published[0].reviews)
+})
+
+test('the PRs to review are shared through the store while fresh', async () => {
+  const h = fakeHost([[/^gh search prs/, { stdout: JSON.stringify(TO_REVIEW) }]])
+  const c = { ...ctx(), reviewsMaxAge: 120_000 }
+  await tick(h.host, c, actions().actions)
+  await tick(h.host, { ...ctx(), reviewsMaxAge: 120_000 }, actions().actions) // another session, same store
+  // Two accounts (the active one and acme's), asked once.
+  expect(h.calls.filter(x => x.line.startsWith('gh search prs'))).toHaveLength(2)
 })

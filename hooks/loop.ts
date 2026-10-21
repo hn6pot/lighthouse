@@ -8,14 +8,15 @@ import { afterPoll, forget, isFinished, keyOf, loadTracked, moveTo, openTracked,
 import { inferPlan, repoFacts } from './deploy/infer'
 import { loadConfig, type Config } from './config'
 import { cached } from './github/cache'
-import { prFacts } from './ui/lines'
+import { prFacts, reviewFacts } from './ui/lines'
 import { ownerOf } from './sessions/owner'
 import { desktopIndex, type DesktopSession } from './sessions/desktop'
 import { liveSessions } from './sessions/registry'
 import { commitRuns, myLogin, myOpenPrs, prDetail, summarizePr } from './github/prs'
+import { reviewRequests } from './github/reviews'
 import type { Host } from './host'
 import type { Texts } from './i18n'
-import type { Owner, PrSummary, Repo, TreeState, Tracked } from './model'
+import type { Owner, PrSummary, Repo, ReviewRequest, TreeState, Tracked } from './model'
 import { baseBranch, localBranches, originSlug, refresh, roots, treeState, isAncestor, lastRelease } from './repos/git'
 import { acquireLock, releaseLock } from './sessions/lock'
 import { sessionAlive } from './sessions/registry'
@@ -39,10 +40,14 @@ export type Context = {
   /** The person's config file (deploy rules, gh accounts), reread at most every minute. */
   config: Config
   configAt?: number
+  /** How old the shared list of PRs to review may be for this tick (0: ask GitHub); absent asks GitHub, no cache. */
+  reviewsMaxAge?: number
+  /** The last list of PRs to review gh gave: kept while gh fails. */
+  reviews?: ReviewRequest[]
 }
 export type Actions = {
   notify: (key: string, text: string) => Promise<void>
-  publish: (trees: TreeState[], events: Tracked[]) => Promise<void>
+  publish: (trees: TreeState[], events: Tracked[], reviews: ReviewRequest[]) => Promise<void>
 }
 
 const FETCH_MS = 10 * 60_000
@@ -366,7 +371,14 @@ export async function tick(host: Host, ctx: Context, actions: Actions): Promise<
     if (owner.kind === 'here') ownedHere.add(s.key)
     return { ...s, owner, ...(handled ? { handled } : {}) }
   })
-  await actions.publish(shown, ownedEvents)
+  // The PRs waiting for my review, in any repo: gh's search API is rate-limited, hence a longer shared cache.
+  try {
+    ctx.reviews = await cached(host, 'reviews', ctx.reviewsMaxAge, () => reviewRequests(host, ctx.config.ghConfigDirs))
+  } catch {
+    // gh unavailable: the last list stays
+  }
+  const reviews = (ctx.reviews ?? []).map(r => ({ ...r, facts: reviewFacts(r, now, ctx.t) }))
+  await actions.publish(shown, ownedEvents, reviews)
 }
 
 export async function cleanNow(host: Host, ctx: Context, key: string): Promise<string> {

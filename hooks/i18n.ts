@@ -92,6 +92,13 @@ const fr = {
     clean: 'Nettoyer',
     forget: 'Oublier',
     tidy: 'Ménage',
+    intent: 'Relire avec intent',
+  },
+
+  /** The PRs where my review is requested. */
+  review: {
+    title: (n: number) => `À relire · ${n}`,
+    by: (login: string) => `par ${login}`,
   },
 
   event: {
@@ -297,6 +304,12 @@ const en: Texts = {
     clean: 'Clean up',
     forget: 'Forget',
     tidy: 'Tidy up',
+    intent: 'Review with intent',
+  },
+
+  review: {
+    title: n => `To review · ${n}`,
+    by: login => `by ${login}`,
   },
 
   event: {

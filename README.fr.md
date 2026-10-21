@@ -38,9 +38,15 @@ Le panneau s'ouvre dès que la conversation touche un dépôt git ; `/lighthouse
 
 Les PR et les branches sont groupées d'abord par conversation : **cette conversation**, **une autre conversation** (sous son titre dans le Desktop, avec un « ↗ » qui l'ouvre), et **sans conversation connue**. La conversation se déduit du worktree où vit chaque PR ou branche. Ensuite, elles sont groupées par dépôt.
 
+### PR à relire
+
+Un dernier cadre, **À relire**, liste les PR ouvertes où ta relecture est demandée, dans n'importe quel dépôt (pas seulement ceux de la conversation) : leur titre, leur dépôt, leur auteur et leur dernière activité. Elles viennent de `gh search prs --review-requested=@me`, sur ton compte gh actif et sur chaque compte de `ghConfigDirs`, au plus toutes les 2 minutes via le cache partagé (tout de suite avec « ↻ »).
+
+Avec le mod [intent](https://github.com/hn6pot/intent) activé, chacune d'elles, et chacune de tes propres PR, a un bouton **Relire avec intent** : il lance `/intent <lien de la PR>`, qui ouvre la page de revue d'intent sur cette PR (le pourquoi de chaque changement). Un mod ne peut pas en importer un autre : la commande slash est le seul lien entre les deux ; sans intent, le bouton n'apparaît pas.
+
 Le bandeau au-dessus du prompt ne montre que ce qui t'attend dans cette conversation : un déploiement à confirmer (avec une notification et un bouton « Déployer »), un déploiement en échec (notification, « Déployer » et « Oublier »), et un nettoyage en attente (« Nettoyer », sans notification).
 
-L'état git local est rafraîchi toutes les 10 secondes. GitHub est lu au plus toutes les 30 secondes par dépôt, via un cache partagé par toutes les conversations, et tout de suite après chaque commande git ou gh ou chaque appui sur un bouton.
+L'état git local est rafraîchi toutes les 10 secondes. GitHub est lu au plus toutes les 30 secondes par dépôt (2 minutes pour les PRs à relire), via un cache partagé par toutes les conversations, et tout de suite après chaque commande git ou gh ou chaque appui sur un bouton.
 
 ## Installation
 
