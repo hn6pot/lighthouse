@@ -2,13 +2,13 @@
   "name": "lighthouse",
   "owner": { "name": "hn6pot" },
   "metadata": {
-    "description": "Lighthouse, a Claude Code mod: a Repos pane that follows your PRs from review to deploy and cleanup"
+    "description": "Lighthouse, a Claude Code mod: a side pane that follows your PRs from review to deploy and cleanup"
   },
   "plugins": [
     {
       "name": "lighthouse",
       "source": "./",
-      "description": "A Repos pane for Claude Code: the git repos a session touches, its PRs and branches, deploy tracking after merge, worktree cleanup",
+      "description": "A side pane for Claude Code: the git repos a session touches, its PRs and branches, deploy tracking after merge, worktree cleanup",
       "homepage": "https://github.com/hn6pot/lighthouse",
       "license": "MIT"
     }

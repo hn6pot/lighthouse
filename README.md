@@ -2,12 +2,12 @@
 
 *[Version française](README.fr.md)*
 
-A Claude Code mod that adds a **Repos** pane on the side of your session. It shows the git repos the session touches, your open PRs and local branches, and what is left to do on each of them. After a merge it follows the deploy, then cleans up the worktree and the branch.
+A Claude Code mod that adds a **Lighthouse** pane on the side of your session. It shows the git repos the session touches, your open PRs and local branches, and what is left to do on each of them. After a merge it follows the deploy, then cleans up the worktree and the branch.
 
 > **Early access.** Claude Code mods (plugins with a hooks module) are an early-access API. It may change, and this mod may break when it does.
 
 ```
-╭─ Repos ─────────────────────────────────────────────── ↻ ─╮
+╭─ Lighthouse ────────────────────────────────────────── ↻ ─╮
 │ 2 PRs · 1 to deploy · 1 to push                           │
 │ ╭─ This session ────────────────────────────────────────╮ │
 │ │ ▼ api                                    v1.4.0 +12   │ │
