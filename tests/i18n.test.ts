@@ -10,7 +10,7 @@ test('langOf: French only when asked, English otherwise', () => {
 
 test('English texts: pane, toasts, reasons, deploy request', () => {
   const en = texts('en')
-  expect(en.paneTitle).toBe('Repos')
+  expect(en.paneTitle).toBe('Lighthouse')
   expect(en.noRepo).toBe('No repo touched by this session yet.')
   expect(en.toast.merged(3, 'squash')).toBe('#3 merged (squash)')
   expect(en.toast.notPushed('feat/x', 'rejected')).toBe('feat/x not pushed: rejected')
@@ -28,7 +28,7 @@ test('English texts: pane, toasts, reasons, deploy request', () => {
 
 test('French stays the default wording', () => {
   const fr = texts('fr')
-  expect(fr.paneTitle).toBe('Dépôts')
+  expect(fr.paneTitle).toBe('Lighthouse')
   expect(fr.task.action('fix-ci', 4)).toBe('corrige la CI #4')
   expect(fr.prompt.deploy({ slug: 'w/x', number: 4, branch: 'feat/x', base: 'main', root: '/r', command: 'make deploy', reason: 'r' })).toBe(
     [

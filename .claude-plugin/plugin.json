@@ -1,7 +1,7 @@
 {
   "name": "lighthouse",
   "version": "0.1.0",
-  "description": "A Repos pane for Claude Code: the git repos a session touches, its PRs and branches, deploy tracking after merge, worktree cleanup",
+  "description": "A side pane for Claude Code: the git repos a session touches, its PRs and branches, deploy tracking after merge, worktree cleanup",
   "author": { "name": "hn6pot" },
   "homepage": "https://github.com/hn6pot/lighthouse",
   "repository": "https://github.com/hn6pot/lighthouse",

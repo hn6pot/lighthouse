@@ -24,7 +24,7 @@ const FR_ACTION: ActionText = {
 const fr = {
   lang: 'fr' as Lang,
   commandDescription: 'État des dépôts de la conversation et de leurs PR',
-  paneTitle: 'Dépôts',
+  paneTitle: 'Lighthouse',
   noRepo: "Aucun dépôt touché par cette conversation pour l'instant.",
   errorToast: (error: string) => `lighthouse : ${error}`,
 
@@ -239,7 +239,7 @@ const EN_TASK: ActionText = { 'fix-ci': 'Fix the CI of', comments: 'Address the 
 const en: Texts = {
   lang: 'en',
   commandDescription: 'State of the session’s repos and their PRs',
-  paneTitle: 'Repos',
+  paneTitle: 'Lighthouse',
   noRepo: 'No repo touched by this session yet.',
   errorToast: error => `lighthouse: ${error}`,
 

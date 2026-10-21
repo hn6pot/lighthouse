@@ -132,11 +132,11 @@ test('the pane opens on its own once, not at every tick', { options: { language:
   const lines = engine(on, {}, { cwd: '/w/web' })
   await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
   await clock.advance(3_000)
-  expect(lines.filter(l => l === 'ui.open lighthouse Dépôts')).toHaveLength(1)
+  expect(lines.filter(l => l === 'ui.open lighthouse Lighthouse')).toHaveLength(1)
   await clock.advance(120_000)
-  expect(lines.filter(l => l === 'ui.open lighthouse Dépôts')).toHaveLength(1)
+  expect(lines.filter(l => l === 'ui.open lighthouse Lighthouse')).toHaveLength(1)
   await $.command.run({ command: 'lighthouse', args: '' } as never)
-  expect(lines.filter(l => l === 'ui.open lighthouse Dépôts')).toHaveLength(2)
+  expect(lines.filter(l => l === 'ui.open lighthouse Lighthouse')).toHaveLength(2)
 })
 
 const PR_GH = {
@@ -145,7 +145,7 @@ const PR_GH = {
   statusCheckRollup: [{ name: 'lint', status: 'COMPLETED', conclusion: 'FAILURE' }], isDraft: false, mergeable: 'MERGEABLE', mergeStateStatus: 'BLOCKED',
 }
 const PR_READY = { ...PR_GH, number: 5, title: 'fix: y', url: 'https://github.com/acme/web/pull/5', headRefName: 'fix/y', headRefOid: 'five', reviewDecision: 'APPROVED', statusCheckRollup: [], mergeStateStatus: 'CLEAN' }
-const PANE = { component: 'Pane', requestId: 'lighthouse', props: { title: 'Dépôts', isFocused: false, bodyColumns: 60, placement: 'dock' } } as never
+const PANE = { component: 'Pane', requestId: 'lighthouse', props: { title: 'Lighthouse', isFocused: false, bodyColumns: 60, placement: 'dock' } } as never
 
 test('pane: PRs in color and their actions, on the terminal and the Desktop', { options: { language: 'fr' } }, async ($, on) => {
   const clock = mock.clock(on)
@@ -268,7 +268,7 @@ test('language en: the pane, its buttons and the agent’s instructions in Engli
   await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
   await clock.advance(3_000)
   expect(lines).toContain('command lighthouse: State of the session’s repos and their PRs')
-  expect(lines).toContain('ui.open lighthouse Repos')
+  expect(lines).toContain('ui.open lighthouse Lighthouse')
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ plugin: 'lighthouse', surface, ...(PANE as object) } as never)
     expect((await ui.find({ key: 'toggle-repo:here:/w/web' }))?.text).toBe('▼ web')
@@ -451,7 +451,7 @@ test('without the language option, everything is in English', async ($, on) => {
   const lines = engine(on, {}, { cwd: '/w/web' })
   await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
   await clock.advance(3_000)
-  expect(lines).toContain('ui.open lighthouse Repos')
+  expect(lines).toContain('ui.open lighthouse Lighthouse')
   const ui = await $.ui.mount({ plugin: 'lighthouse', surface: 'desktop', ...(PANE as object) } as never)
   expect((await ui.find({ key: 'tidy-/w/web' }))?.text).toBe('Tidy up')
 })

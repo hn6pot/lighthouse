@@ -2,12 +2,12 @@
 
 *[English version](README.md)*
 
-Un mod Claude Code qui ajoute un panneau **Dépôts** sur le côté de la conversation. Il montre les dépôts git que la conversation touche, tes PR ouvertes et tes branches locales, et ce qu'il reste à faire sur chacune. Après une fusion, il suit le déploiement, puis nettoie le worktree et la branche.
+Un mod Claude Code qui ajoute un panneau **Lighthouse** sur le côté de la conversation. Il montre les dépôts git que la conversation touche, tes PR ouvertes et tes branches locales, et ce qu'il reste à faire sur chacune. Après une fusion, il suit le déploiement, puis nettoie le worktree et la branche.
 
 > **Accès anticipé.** Les mods Claude Code (des plugins avec un module de hooks) sont une API en accès anticipé. Elle peut changer, et ce mod peut casser quand elle change.
 
 ```
-╭─ Dépôts ────────────────────────────────────────────── ↻ ─╮
+╭─ Lighthouse ────────────────────────────────────────── ↻ ─╮
 │ 2 PR · 1 à déployer · 1 à pousser                         │
 │ ╭─ Cette conversation ──────────────────────────────────╮ │
 │ │ ▼ api                                    v1.4.0 +12   │ │
