@@ -2,7 +2,7 @@
 import type { EngineInterface } from 'claude-code'
 import { distribute, type Activity } from '../activity'
 import type { Texts } from '../i18n'
-import type { LocalBranch, PrSummary, TreeState, Tracked } from '../model'
+import type { LocalBranch, PrSummary, ReviewRequest, TreeState, Tracked } from '../model'
 import type { Buttons } from './band'
 import { branchActions, branchChips, CHECK_FRAMES, prLocalLine, prProgress, summaryLine, trackedProgress, type Step, eventLine, layout, prActions, prChips, repoColor, repoCounts, repoDetails, shorten, trackedChips, type RepoInGroup, type SessionGroup } from './lines'
 
@@ -19,6 +19,8 @@ export function drawPane(
   celebrating: Readonly<Record<string, number>>,
   refreshing: boolean,
   pressed: Readonly<Record<string, boolean>>,
+  reviews: readonly ReviewRequest[],
+  intent: boolean,
   buttons: Buttons,
   t: Texts,
 ) {
@@ -27,13 +29,49 @@ export function drawPane(
   const busy = (key: string, label: string) => (pressed[key] ? `${label} …` : label)
   // A small icon at the end of the first line: a mod cannot add to the pane's own title bar.
   const refresh = <Button key="refresh" plain dimColor label={refreshing ? '⋯' : t.button.refresh} onPress={() => buttons.refresh()} />
+  /** "Review with intent", when the intent mod is there: it opens its review page on the PR. */
+  const intentButton = (key: string, url: string) =>
+    intent ? <Button key={key} label={busy(key, t.button.intent)} onPress={() => buttons.run(key, () => buttons.intent(url))} /> : null
+
+  /** The PRs where my review is requested, in any repo: a frame of their own, last, that folds. */
+  const reviewsFrame = () => {
+    if (reviews.length === 0) return null
+    const key = 'group:reviews'
+    const open = expanded[key] ?? true
+    return (
+      <Box key={key} flexDirection="column" gap={1} borderStyle="round" borderColor="subtle" paddingX={1}>
+        <Button key={`toggle-${key}`} plain label={`${open ? '▼' : '▶'} ${t.review.title(reviews.length)}`} onPress={() => buttons.toggle(key, open)} />
+        {open &&
+          reviews.map(r => {
+            const id = `${r.slug}#${r.number}`
+            return (
+              <Box key={`review-${id}`} flexDirection="column" paddingLeft={2}>
+                <Box gap={1}>
+                  <Link href={r.url} label={`#${r.number}`} />
+                  <Text wrap="truncate-end">{r.title}</Text>
+                </Box>
+                {r.facts ? <Text dimColor wrap="truncate-end">{r.facts}</Text> : null}
+                <Box gap={1} flexWrap="wrap">
+                  <Link href={r.url} label={t.button.openOnGitHub} />
+                  {intentButton(`review-intent-${id}`, r.url)}
+                </Box>
+              </Box>
+            )
+          })}
+      </Box>
+    )
+  }
+
   if (trees.length === 0) {
     return (
-      <Box gap={1}>
-        <Box flexGrow={1}>
-          <Text dimColor>{t.noRepo}</Text>
+      <Box flexDirection="column" gap={1}>
+        <Box gap={1}>
+          <Box flexGrow={1}>
+            <Text dimColor>{t.noRepo}</Text>
+          </Box>
+          {refresh}
         </Box>
-        {refresh}
+        {reviewsFrame()}
       </Box>
     )
   }
@@ -73,6 +111,7 @@ export function drawPane(
         {inProgress(texts, key)}
         <Box gap={1} flexWrap="wrap">
           <Link href={p.url} label={t.button.openOnGitHub} />
+          {intentButton(`intent-${key}`, p.url)}
           {actions.includes('merge') && (
             <Button
               key={`merge-${key}`}
@@ -219,6 +258,7 @@ export function drawPane(
           </Box>
         )
       })}
+      {reviewsFrame()}
     </Box>
   )
 }

@@ -492,3 +492,35 @@ test('the pane: a summary line, a frame per session, each PR with its progress, 
   expect(await ui.find({ type: 'Text', text: ' ─ ● CI' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'opened 1 min ago · updated 1 min ago · +120 −30 · 8 files' })).toBeDefined()
 })
+
+const TO_REVIEW = [{ number: 9, title: 'Add search', url: 'https://github.com/beta/api/pull/9', isDraft: false, updatedAt: new Date(0).toISOString(), repository: { nameWithOwner: 'beta/api' }, author: { login: 'alice' } }]
+
+test('the PRs to review: a frame of their own, and « Relire avec intent » runs /intent with the link', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  engine(on, {}, { cwd: '/w/web' }, undefined, [PR_READY], [[/^gh search prs/, JSON.stringify(TO_REVIEW)]])
+  const ran: { command: string; args: string }[] = []
+  on('command.list', async () => ({ value: [{ name: 'intent', description: 'Revue', source: 'plugin', plugin: 'intent' }] }) as never)
+  on('command.run', async (_$, e) => (ran.push({ command: e.command, args: e.args }), {}) as never)
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  const ui = await $.ui.mount({ plugin: 'lighthouse', surface: 'desktop', ...(PANE as object) } as never)
+  expect((await ui.find({ key: 'toggle-group:reviews' }))?.text).toBe('▼ À relire · 1')
+  expect(await ui.find({ type: 'Text', text: 'Add search' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'beta/api · par alice · active il y a 1 min' })).toBeDefined()
+  expect(await ui.find({ key: 'intent-acme/web#5' })).toBeDefined() // my own PRs get it too
+  await ui.press({ key: 'review-intent-beta/api#9' })
+  await clock.advance(0)
+  expect(ran).toContainEqual({ command: 'intent', args: 'https://github.com/beta/api/pull/9' })
+})
+
+test('without the intent mod, no « Relire avec intent » button', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  engine(on, {}, { cwd: '/w/web' }, undefined, [PR_READY], [[/^gh search prs/, JSON.stringify(TO_REVIEW)]])
+  on('command.list', async () => ({ value: [] }) as never)
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  const ui = await $.ui.mount({ plugin: 'lighthouse', surface: 'desktop', ...(PANE as object) } as never)
+  expect(await ui.find({ type: 'Text', text: 'Add search' })).toBeDefined()
+  expect(await ui.find({ key: 'review-intent-beta/api#9' })).toBeUndefined()
+  expect(await ui.find({ key: 'intent-acme/web#5' })).toBeUndefined()
+})

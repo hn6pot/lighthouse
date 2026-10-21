@@ -83,6 +83,17 @@ export type LighthouseTracked = {
   handled?: 'here' | 'other'
 }
 
+export type LighthouseReview = {
+  slug: string
+  number: number
+  title: string
+  url: string
+  author: string
+  draft: boolean
+  updatedAt?: number
+  facts?: string
+}
+
 export type LighthouseActivity = { id: string; root: string; text: string; number?: number; branch?: string; folder?: string }
 
 declare module 'claude-code' {
@@ -104,6 +115,10 @@ declare module 'claude-code' {
       refreshing: boolean
       /** Buttons whose action is running, by key. */
       pressed: Record<string, boolean>
+      /** The open PRs where my review is requested, in any repo. */
+      reviews: LighthouseReview[]
+      /** The intent mod's `/intent` command is there: the PRs get a "Review with intent" button. */
+      intent: boolean
     }
   }
 }

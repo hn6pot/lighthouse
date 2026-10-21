@@ -44,6 +44,13 @@ const PRESSED = atom({ plugin: 'lighthouse', key: 'pressed' } as const, {})
 const PRESS_FEEDBACK_MS = 700
 /** True from a press on Refresh until the tick it starts has drawn. */
 const REFRESHING = atom({ plugin: 'lighthouse', key: 'refreshing' } as const, false)
+/** The PRs where my review is requested, and whether the intent mod can review them. */
+const REVIEWS = atom({ plugin: 'lighthouse', key: 'reviews' } as const, [])
+const INTENT = atom({ plugin: 'lighthouse', key: 'intent' } as const, false)
+/** The PRs to review are asked to GitHub at most this often (its search API is rate-limited), unless Refresh is pressed. */
+const REVIEWS_FRESH_MS = 2 * 60_000
+/** Only a GitHub PR link goes to `/intent`. */
+const PR_URL = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+$/
 /** The check of a cleaned PR: one frame this long, then the tick stays this long before the card goes. */
 const FRAME_MS = 150
 const CHECK_HOLD_MS = 4_000
@@ -76,6 +83,10 @@ type State = {
   tickNow: () => Promise<void>
   /** A git or gh command or a button just changed things: the next tick asks GitHub instead of the shared cache. */
   forceGh: boolean
+  /** Refresh was pressed: the next tick asks GitHub for the PRs to review too. */
+  forceReviews: boolean
+  /** The intent mod's command was there at the last tick. */
+  intent: boolean
   /** What was last drawn, to redraw only on change. */
   drawn: string
   /** Cleaned PRs whose check was already drawn in this session: never again. */
@@ -211,6 +222,7 @@ const buttons = ($: EngineInterface, state: State): Buttons => {
         // At once, asking GitHub and rereading the base; the icon says it is on it until the tick has drawn.
         state.ctx?.lastFetch.clear()
         state.forceGh = true
+        state.forceReviews = true
         await update($, REFRESHING, () => true)
         await state.tickNow()
       })().catch(fail),
@@ -267,6 +279,11 @@ const buttons = ($: EngineInterface, state: State): Buttons => {
           state.sending.delete(key)
         }
       })().catch(fail),
+    intent: url => {
+      // `/intent <link>` of the intent mod (a mod cannot import another one): it opens its review page on that PR.
+      if (!PR_URL.test(url)) return
+      return $.command.run({ command: 'intent', args: url }).then(() => undefined, fail)
+    },
     openPr: (root, branch) =>
       (async () => {
         const a = state.trees.find(x => x.root === root)
@@ -307,7 +324,7 @@ export const register: Register = (on, options) => {
   const t = texts(langOf(options.language))
   const state: State = {
     t, host: null, ctx: null, entrusted: new Map(), folders: new Set(), links: new Map(), sending: new Set(),
-    trees: [], pendingMerge: null, pane: null, rerun: () => undefined, tickNow: async () => undefined, activities: new Map(), agents: new Map(), forceGh: false, drawn: '', celebrated: new Set(), label: null,
+    trees: [], pendingMerge: null, pane: null, rerun: () => undefined, tickNow: async () => undefined, activities: new Map(), agents: new Map(), forceGh: false, forceReviews: false, intent: false, drawn: '', celebrated: new Set(), label: null,
   }
   let running = false
   let replay = false
@@ -374,17 +391,26 @@ export const register: Register = (on, options) => {
         await recordHere()
         ctx.ghMaxAge = state.forceGh ? 0 : GH_FRESH_MS
         state.forceGh = false
+        ctx.reviewsMaxAge = state.forceReviews ? 0 : REVIEWS_FRESH_MS
+        state.forceReviews = false
+        // The intent mod may be enabled or disabled at any time: its command says whether it is there.
+        const intent = await $.command.list().then(list => list.some(c => c.name === 'intent'), () => false)
+        if (intent !== state.intent) {
+          state.intent = intent
+          await update($, INTENT, () => intent)
+        }
         await tick(host, ctx, {
           notify: (key, text) =>
             notifyOnce(host.store, x => sendNotification(host, y => $.ui.notify(y, { title: 'lighthouse' }), x), key, text),
-          publish: async (trees, events) => {
+          publish: async (trees, events, reviews) => {
             state.trees = trees
             for (const s of events) if (s.stage === 'cleaned' && !state.celebrated.has(s.key)) celebrate(s.key)
-            const drawn = JSON.stringify([trees, events])
+            const drawn = JSON.stringify([trees, events, reviews])
             if (drawn === state.drawn) return // nothing changed: no redraw
             state.drawn = drawn
             await update($, TREES, () => trees)
             await update($, EVENTS, () => events)
+            await update($, REVIEWS, () => reviews)
           },
         })
         // On the side as soon as there is a repo to show; never reopened on its own once closed by hand.
@@ -512,6 +538,6 @@ export const register: Register = (on, options) => {
   )
   // Literal: the validator refuses an imported constant; same value as PANE (ui/pane.tsx).
   on('ui.render', { component: 'Pane', requestId: 'lighthouse' }, async ($, e) =>
-    drawPane($.ui.resolve(e), await read($, TREES), await read($, EVENTS), await read($, EXPANDED), await read($, PENDING_MERGE), await read($, ACTIVITIES), await read($, CELEBRATING), await read($, REFRESHING), await read($, PRESSED), buttons($, state), t),
+    drawPane($.ui.resolve(e), await read($, TREES), await read($, EVENTS), await read($, EXPANDED), await read($, PENDING_MERGE), await read($, ACTIVITIES), await read($, CELEBRATING), await read($, REFRESHING), await read($, PRESSED), await read($, REVIEWS), await read($, INTENT), buttons($, state), t),
   )
 }

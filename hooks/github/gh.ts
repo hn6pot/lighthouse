@@ -4,11 +4,13 @@ import type { Host } from '../host'
 /** Repo owner → GH_CONFIG_DIR, from the config file; `~` stands for the home. */
 export type GhConfigDirs = Record<string, string>
 
+/** A gh config folder of the config, with `~` as the home. */
+export const expandHome = (dir: string, home: string) => (dir === '~' || dir.startsWith('~/') ? home + dir.slice(1) : dir)
+
 export function ghEnv(slug: string, home: string, dirs: GhConfigDirs): Record<string, string> | undefined {
   const owner = slug.split('/')[0] ?? ''
   if (!Object.hasOwn(dirs, owner)) return undefined
-  const dir = dirs[owner]
-  return { GH_CONFIG_DIR: dir === '~' || dir.startsWith('~/') ? home + dir.slice(1) : dir }
+  return { GH_CONFIG_DIR: expandHome(dirs[owner], home) }
 }
 
 export async function ghJson<T>(host: Host, dirs: GhConfigDirs, slug: string, args: readonly string[]): Promise<T> {

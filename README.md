@@ -37,9 +37,15 @@ The pane opens as soon as the session touches a git repo; `/lighthouse` reopens 
 
 PRs and branches are grouped by session first: **this session**, **another session** (under its Desktop title, with a "↗" that opens it), and **no known session**. The session is found from the worktree each PR or branch lives in. Then they are grouped by repo.
 
+### PRs to review
+
+A last frame, **To review**, lists the open PRs where your review is requested, in any repo (not only the session's): their title, repo, author and last activity. They come from `gh search prs --review-requested=@me`, on your active gh account and on each account of `ghConfigDirs`, at most every 2 minutes through the shared cache (at once with "↻").
+
+With the [intent](https://github.com/hn6pot/intent) mod enabled, each of them, and each of your own PRs, gets a **Review with intent** button: it runs `/intent <PR link>`, which opens intent's review page on that PR (the why behind each change). A mod cannot import another one, so the slash command is the only link between the two; without intent, the button is not shown.
+
 The band above the prompt only shows what waits for you in this session: a deploy doubt (with a notification and a "Deploy" button), a failed deploy (notification, "Deploy" and "Forget"), and a cleanup doubt ("Clean up", no notification).
 
-The local git state is refreshed every 10 seconds. GitHub is read at most every 30 seconds per repo, through a cache shared by all sessions, and at once after any git or gh command or a button press.
+The local git state is refreshed every 10 seconds. GitHub is read at most every 30 seconds per repo (2 minutes for the PRs to review), through a cache shared by all sessions, and at once after any git or gh command or a button press.
 
 ## Install
 

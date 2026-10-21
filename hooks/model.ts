@@ -47,6 +47,20 @@ export type LocalBranch = {
   owner?: Owner
 }
 
+/** An open PR where my review is requested, in any repo. */
+export type ReviewRequest = {
+  slug: string
+  number: number
+  title: string
+  url: string
+  /** Its author's login. */
+  author: string
+  draft: boolean
+  updatedAt?: number
+  /** Repo, author and age, worded at the tick (so the pane redraws when they change). */
+  facts?: string
+}
+
 export type CiState = 'ok' | 'failing' | 'pending' | 'none'
 
 export type ReviewState = 'approved' | 'changes' | 'pending' | 'none'

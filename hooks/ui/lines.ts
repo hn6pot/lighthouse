@@ -1,6 +1,6 @@
 // The pane's and the band's text and colors, computed without drawing anything.
 import type { Texts } from '../i18n'
-import type { LocalBranch, Owner, PrSummary, TreeState, Tracked } from '../model'
+import type { LocalBranch, Owner, PrSummary, ReviewRequest, TreeState, Tracked } from '../model'
 
 /** A Claude Code theme key: it follows the light or dark theme. */
 export type Color = 'success' | 'warning' | 'error' | 'subtle' | 'merged'
@@ -235,6 +235,14 @@ export function prFacts(p: PrSummary, now: number, t: Texts): { text: string; st
   if (p.updatedAt !== undefined) parts.push(t.facts.updated(t.facts.ago(now - p.updatedAt)))
   if (p.additions !== undefined) parts.push(t.facts.size(p.additions, p.deletions ?? 0, p.files ?? 0))
   return { text: parts.join(' · '), stale: p.updatedAt !== undefined && now - p.updatedAt > STALE_MS }
+}
+
+/** A PR to review: its repo, its author, its last activity, and whether it is a draft. */
+export function reviewFacts(r: ReviewRequest, now: number, t: Texts): string {
+  const parts = [r.slug, t.review.by(r.author)]
+  if (r.updatedAt !== undefined) parts.push(t.facts.updated(t.facts.ago(now - r.updatedAt)))
+  if (r.draft) parts.push(t.chip.draft)
+  return parts.join(' · ')
 }
 
 /** The pane's first line: open PRs, merged PRs waiting for their deploy, work waiting to be pushed. */

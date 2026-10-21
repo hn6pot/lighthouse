@@ -24,6 +24,8 @@ export type Buttons = {
   /** Pushes a local branch (a PR's or a branch without PR). */
   push: (root: string, branch: string, to?: string) => Promise<void> | void
   openPr: (root: string, branch: string) => Promise<void> | void
+  /** Opens the PR's review in the intent mod (`/intent <link>`). */
+  intent: (url: string) => Promise<void> | void
 }
 
 /** Components and `$` stay in register.ts: Claude Code refuses `$` crossing an import. */

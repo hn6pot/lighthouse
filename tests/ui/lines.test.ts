@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { texts } from '../../hooks/i18n'
 import type { LocalBranch, Owner, PrSummary, TreeState, Tracked } from '../../hooks/model'
-import { actionPrompt, branchActions, branchChips, branchPrompt, eventLine, layout, prActions, prChips, prFacts, prLocalLine, prProgress, summaryLine, trackedProgress, repoColor, repoCounts, repoDetails, repoHeader, shorten, tidyPrompt, trackedChips } from '../../hooks/ui/lines'
+import { actionPrompt, branchActions, branchChips, branchPrompt, eventLine, layout, prActions, prChips, prFacts, prLocalLine, prProgress, reviewFacts, summaryLine, trackedProgress, repoColor, repoCounts, repoDetails, repoHeader, shorten, tidyPrompt, trackedChips } from '../../hooks/ui/lines'
 
 const t = texts('fr')
 const P: PrSummary = {
@@ -255,4 +255,10 @@ test('tidy-up prompt: gh with the repo’s own account when it has one, quoted i
   expect(tidyPrompt(A, en, undefined)).toContain('2. For each branch other than production, find its PR: gh pr list -R w/api')
   expect(tidyPrompt(A, en, '/Users/me/.config/gh-acme')).toContain('find its PR: GH_CONFIG_DIR=/Users/me/.config/gh-acme gh pr list -R w/api')
   expect(tidyPrompt(A, en, "/Users/me/gh dirs/it's")).toContain(`GH_CONFIG_DIR='/Users/me/gh dirs/it'\\''s' gh pr list`)
+})
+
+test('a PR to review: its repo, its author, its last activity, and draft', () => {
+  const r = { slug: 'acme/api', number: 9, title: 'x', url: 'u', author: 'alice', draft: true, updatedAt: 0 }
+  expect(reviewFacts(r, 2 * 3_600_000, texts('en'))).toBe('acme/api · by alice · updated 2 h ago · Draft')
+  expect(reviewFacts({ ...r, draft: false, updatedAt: undefined }, 0, t)).toBe('acme/api · par alice')
 })
