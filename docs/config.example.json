@@ -1,0 +1,21 @@
+{
+  "rules": {
+    "acme/api": { "kind": "workflow", "workflow": "Deploy Production" },
+    "acme/worker": { "kind": "delay", "seconds": 120 },
+    "acme/website": { "kind": "immediate" },
+    "acme/infra": {
+      "kind": "manual",
+      "commands": [
+        { "only_under": "services/*/", "single": true, "command": "make deploy SERVICE={1}" },
+        { "only_under": "laptop/", "command": "make install" }
+      ]
+    },
+    "acme/charts": {
+      "kind": "manual",
+      "always_doubt": { "en": "production: pick the Helm target by hand", "fr": "production : choisir la cible Helm à la main" }
+    }
+  },
+  "ghConfigDirs": {
+    "acme": "~/.config/gh-acme"
+  }
+}

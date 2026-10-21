@@ -1,0 +1,182 @@
+# lighthouse
+
+*[Version française](README.fr.md)*
+
+A Claude Code mod that adds a **Repos** pane on the side of your session. It shows the git repos the session touches, your open PRs and local branches, and what is left to do on each of them. After a merge it follows the deploy, then cleans up the worktree and the branch.
+
+> **Early access.** Claude Code mods (plugins with a hooks module) are an early-access API. It may change, and this mod may break when it does.
+
+```
+╭─ Repos ─────────────────────────────────────────────── ↻ ─╮
+│ 2 PRs · 1 to deploy · 1 to push                           │
+│ ╭─ This session ────────────────────────────────────────╮ │
+│ │ ▼ api                                    v1.4.0 +12   │ │
+│ │   #42 feat: add rate limiting  ⎇ feat/rate (worktree) │ │
+│ │   Review ─ CI ─ Merge ─ Deploy ─ Clean up             │ │
+│ │   Review approved · CI ✓ · opened 3 d ago · +120 −30  │ │
+│ │   [Open on GitHub] [Merge]                            │ │
+│ │   feat/rate-docs · ↳ on #42 · ↑2 unpushed  [Push]     │ │
+│ │   #39 fix: login · Merged into main · Deploying ⟳     │ │
+│ │   [Tidy up]                                           │ │
+│ ╰───────────────────────────────────────────────────────╯ │
+│ ▶ Another session · “Fix the pipeline” ↗                  │
+╰───────────────────────────────────────────────────────────╯
+```
+
+## What it does
+
+The pane opens as soon as the session touches a git repo; `/lighthouse` reopens it. A summary line sits on top ("2 PRs · 1 to deploy · 1 to push"), with a small "↻" button to refresh at once. Below it, one rounded frame per session (this one first), and inside it one foldable line per repo, colored by its worst state. A repo unfolds onto:
+
+- **its last release**, when the base branch has a tag ("v1.4.0 +12": 12 commits since).
+- **your open PRs.** Each has a progress line (Review ─ CI ─ Merge ─ Deploy ─ Clean up), its age and size (in yellow after 7 days without activity) and the local branch it is linked to, even under another name. A card shows the title, link, review, CI (failing checks named), draft, conflicts, behind the base and unpushed commits. Its buttons depend on its state: "Open on GitHub", "Merge" (two presses, only when nothing blocks), "Push", and "Fix the CI", "Address comments" and "Update the branch", which go to a background agent.
+- **branches stacked on a PR** (they contain its head), shown under that PR with "↳ on #N". "Open a PR" then targets that PR's branch as its base.
+- **branches without a PR**: never pushed, ahead of their remote, or pushed without a PR. They get "Push" and "Open a PR" (background agent).
+- **merged PRs**: "Merged into main", then where the deploy and the cleanup stand. Once a PR is cleaned up, a check fills up, stays 4 seconds, and the card goes.
+- **a "Tidy up" button** on each repo of this session (see below).
+- **what Claude is doing** (⟳): on the card a git or gh command targets, "Claude is working here" on the repo during its turn, and a background agent's task until it ends.
+
+PRs and branches are grouped by session first: **this session**, **another session** (under its Desktop title, with a "↗" that opens it), and **no known session**. The session is found from the worktree each PR or branch lives in. Then they are grouped by repo.
+
+The band above the prompt only shows what waits for you in this session: a deploy doubt (with a notification and a "Deploy" button), a failed deploy (notification, "Deploy" and "Forget"), and a cleanup doubt ("Clean up", no notification).
+
+The local git state is refreshed every 10 seconds. GitHub is read at most every 30 seconds per repo, through a cache shared by all sessions, and at once after any git or gh command or a button press.
+
+## Install
+
+From GitHub:
+
+```
+/plugin marketplace add hn6pot/lighthouse
+/plugin install lighthouse@lighthouse
+```
+
+From a local clone:
+
+```bash
+git clone https://github.com/hn6pot/lighthouse.git
+claude plugin marketplace add ./lighthouse
+claude plugin install lighthouse@lighthouse
+```
+
+Then run `/reload-plugins` in any session that is already open.
+
+### Requirements
+
+- `git`, and the GitHub CLI `gh`, logged in (`gh auth login`) with access to your repos.
+- Built and used on macOS. Manual deploys run through `/bin/zsh -lc`. "Tidy up" and the "↗" session links open `claude://` links with `open`, so they need the Claude Desktop app. Notifications fall back on `osascript` when Claude Code has no surface to show them.
+
+## Configuration
+
+Everything works without a config file. To set deploy rules or gh accounts, create `~/.lighthouse/config.json`. A full example is in [`docs/config.example.json`](docs/config.example.json):
+
+```json
+{
+  "rules": {
+    "acme/api": { "kind": "workflow", "workflow": "Deploy Production" },
+    "acme/worker": { "kind": "delay", "seconds": 120 },
+    "acme/website": { "kind": "immediate" },
+    "acme/infra": {
+      "kind": "manual",
+      "commands": [
+        { "only_under": "services/*/", "single": true, "command": "make deploy SERVICE={1}" },
+        { "only_under": "laptop/", "command": "make install" }
+      ]
+    },
+    "acme/charts": {
+      "kind": "manual",
+      "always_doubt": { "en": "production: pick the Helm target by hand", "fr": "production : choisir la cible Helm à la main" }
+    }
+  },
+  "ghConfigDirs": {
+    "acme": "~/.config/gh-acme"
+  }
+}
+```
+
+The file is read when the first refresh runs, then again at most once a minute, so changes apply without a reload. If the file is missing, unreadable or not valid JSON, there are no rules and no extra gh accounts. A malformed entry is left out and the others are kept.
+
+### `rules`: how each repo deploys
+
+The key is the repo as `owner/repo`, as its `origin` remote says. The `kind` field picks one of these rule types:
+
+| `kind` | What happens after a merge |
+| --- | --- |
+| `workflow` | Follows the GitHub Actions runs of the merge commit. `workflow` names the run to follow, as `gh run list` shows it (not the file name). Without a name, any run whose name contains "deploy" or "merge" counts. |
+| `delay` | The PR counts as deployed `seconds` after the merge. |
+| `immediate` | The PR counts as deployed at once. |
+| `manual` | A command to run on your machine, picked from the files the PR touched (see below). |
+
+A `manual` rule lists `commands`, tried in order. The first one that matches wins:
+
+- `{ "always": true, "command": "…" }` always matches.
+- `{ "only_under": "laptop/", "command": "…" }` matches when every file of the PR is under `laptop/`.
+- `{ "only_under": "services/*/", "single": true, "command": "make deploy SERVICE={1}" }`: the `*` captures one folder name, and `{1}` puts it into the command. With `single`, all the files must fall under the same folder. Only plain names (letters, digits, `.`, `_`, `-`) are captured, so a path can never inject into the command.
+
+If no command matches, the PR goes into doubt and the band asks you. `always_doubt` always puts the PR into doubt, with this reason. It is a string, or `{ "en": "…", "fr": "…" }` to follow the language option.
+
+**A repo without a rule** is read from its own files, and the merged PR's card shows what was understood:
+
+- If a GitHub workflow starts on push, the mod follows it.
+- Otherwise, if there is a `make deploy` or `make install` target, or an npm `deploy` or `install-app` script, the PR goes into doubt and the "Deploy" button proposes that command. The mod found it by guessing, so it never runs it on its own.
+- If neither is found, it is a local project with nothing to deploy, and the cleanup follows at once.
+
+### `ghConfigDirs`: one gh account per owner
+
+By default `gh` runs with your active account. If some repos need another account, map their owner to that account's gh config folder. Every `gh` call for those repos then runs with `GH_CONFIG_DIR` set to it, and your active account is left alone. `~` stands for your home folder. To create such a folder: `GH_CONFIG_DIR=~/.config/gh-acme gh auth login`.
+
+### Language
+
+Everything the mod shows or sends to Claude is in English by default, or in French: the pane, the band, buttons, notifications, toasts, and the requests to Claude and to background agents. Set the `language` option (`en` or `fr`) in the `/config` menu (the `lighthouse` row), or in your settings:
+
+```json
+{ "pluginConfigs": { "lighthouse@lighthouse": { "options": { "language": "fr" } } } }
+```
+
+For a plugin loaded with `--plugin-dir`, the key is `lighthouse@inline`. Changing the option reloads the module.
+
+## What it does on its own, and what it asks you
+
+- **Without an interface** (`claude -p`), the mod does nothing.
+- **Deploy.** The mod only launches a command by itself when a `manual` rule matches the merged files. Even then, the repo's main folder must be on the base branch and clean: it runs `git pull --ff-only`, then the command. Otherwise you get a notification and a "Deploy" button, which asks Claude to do it. `delay` and `workflow` launch nothing: the mod waits for the delay or the GitHub run. A launched deploy is never relaunched automatically. If the session that launched it goes away before the end (module reloaded, session closed), the PR goes into doubt.
+- **A deploy you run in the session.** Claude may run a deploy command itself in a repo with a merged PR: `make deploy`, `make …-push`, `helm upgrade`, `kubectl apply`, `gh workflow run`, `terraform apply`, `npm run deploy`, `./…deploy….sh`, or the command the mod proposed. That PR is then marked as handled by this session for 30 minutes. There is no "Deploy" button and no doubt notification, and its card says it is deploying here (or in another session). If the command succeeds, the PR is deployed and the cleanup follows. A dispatched workflow is followed on GitHub instead.
+- **Cleanup.** The mod runs `git worktree remove` then `git branch -D`, only when all of these hold:
+  - the PR is merged;
+  - the worktree and the branch have no commit after the PR's head;
+  - there is no uncommitted change;
+  - no other session works there.
+
+  Otherwise the band shows a "Clean up" button, without a notification. The checks run again on their own every 5 minutes, and the cleanup follows once they pass. `-D` is deliberate, because after a squash merge git does not see the branch as merged. Then the **PR's branch on GitHub is deleted too** (`git push origin --delete`), but only while it still points at the PR's head. If GitHub refuses (a protected branch, for example), the branch stays.
+- **Tidy up.** This button never deletes anything itself. It opens a new Claude Desktop session in the repo with the instruction already typed, and you choose to send it and follow it there. The instruction says to remove:
+  - the worktrees and local branches whose work is done: PR merged or closed with nothing after its head, or nothing outside the base;
+  - the GitHub branches of your merged or closed PRs that are still at their head.
+
+  It also says never to touch an open PR's branch, unpushed work, uncommitted changes, another session's worktree, or the Desktop's `.claude/worktrees/`.
+- **Background agents.** "Fix the CI", "Address comments", "Update the branch" and "Open a PR" hand the task to a background agent in the branch's worktree. The agent is told never to merge or deploy.
+- **One actor per repo.** A `mkdir` lock in `~/.lighthouse/locks/` keeps two sessions from acting on the same repo at once. A lock goes stale after 15 minutes.
+
+## Files it writes
+
+Everything lives under `~/.lighthouse/`:
+
+| Path | What |
+| --- | --- |
+| `config.json` | Your config (optional, written by you, never by the mod). |
+| `state/` | The state of tracked PRs and the notifications already sent, one JSON file per key, shared between sessions. |
+| `sessions/` | One entry per active session: its folder and worktrees. |
+| `locks/` | Repo locks. |
+| `logs/` | Logs of the deploys the mod launched. |
+
+Apart from `config.json`, deleting this folder is safe, unless a deploy is running. It is recreated when needed, but PRs that were already merged will no longer be tracked.
+
+## Develop
+
+```bash
+claude plugin test .       # the test suite, under tests/
+claude plugin validate .   # the plugin, its hooks module and the marketplace
+```
+
+To try a local copy without installing it: `claude --plugin-dir /path/to/lighthouse`. Contributor rules are in [`CLAUDE.md`](CLAUDE.md).
+
+## License
+
+[MIT](LICENSE)
