@@ -160,3 +160,12 @@ export type ReleaseEntry = { sha: string; number: number | null; title: string; 
 
 /** A past release: its tag, its date (ms), and the commits since the release before it. */
 export type ReleaseTag = { tag: string; date: number; entries: ReleaseEntry[] }
+
+/** What a detached release left in `~/.lighthouse/releases/<owner>__<repo>.json`. */
+export type ReleaseRecord = { pid: number; startedAt: number; tagAtLaunch: string | null; expected: string; log: string }
+
+/** Where a repo's last release stands. `warning`: a new tag, but the command failed after it. */
+export type ReleaseRun =
+  | { kind: 'idle' }
+  | { kind: 'running'; startedAt: number; expected: string }
+  | { kind: 'done'; startedAt: number; outcome: 'ok' | 'warning' | 'failed' | 'died'; version: string | null; lastLine: string; log: string }
