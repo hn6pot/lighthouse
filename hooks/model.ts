@@ -151,3 +151,12 @@ export type Plan =
 
 /** A GitHub Actions run. */
 export type Run = { name: string; status: string; conclusion: string | null; url: string }
+
+/** What a commit on the base brought, for the Releases pane. */
+export type ReleaseKind = 'fix' | 'feat' | 'other'
+
+/** `title` without its `type(scope): ` prefix nor its ` (#N)` suffix; `number` null without a PR. */
+export type ReleaseEntry = { sha: string; number: number | null; title: string; kind: ReleaseKind }
+
+/** A past release: its tag, its date (ms), and the commits since the release before it. */
+export type ReleaseTag = { tag: string; date: number; entries: ReleaseEntry[] }
