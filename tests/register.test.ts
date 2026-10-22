@@ -571,3 +571,32 @@ test('main pane: the summary counts what waits for a release', { options: { lang
   expect(await ui.find({ type: 'Text', text: 'rien en attente · 3 à sortir' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: '3 à sortir' })).toBeDefined()
 })
+
+const WEB_RELEASE = JSON.stringify({ rules: { 'acme/web': { kind: 'release', path: '/w/web', command: 'make release' } }, ghConfigDirs: {} })
+
+test('the Releases pane opens on its own once, in a session on a release repo with something to ship', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const lines = engine(on, { [CONFIG_FILE]: WEB_RELEASE }, { cwd: '/w/web' }, undefined, [], RELEASE_GIT)
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  expect(lines.filter(l => l === 'ui.open release Releases')).toHaveLength(1)
+  await clock.advance(120_000)
+  expect(lines.filter(l => l === 'ui.open release Releases')).toHaveLength(1)
+})
+
+test('the Releases pane does not open on its own in a session on another repo', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  // acme/app is a release repo, but this session works in /w/web.
+  const lines = engine(on, { [CONFIG_FILE]: RELEASE_CONFIG }, { cwd: '/w/web' }, undefined, [], RELEASE_GIT)
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  expect(lines.some(l => l.startsWith('ui.open release'))).toBe(false)
+})
+
+test('the Releases pane does not open on its own with nothing to ship', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const lines = engine(on, { [CONFIG_FILE]: WEB_RELEASE }, { cwd: '/w/web' }, undefined, [], [[/log --first-parent --format=\S+ v0\.2\.40\.\.origin\/main/, ''], ...RELEASE_GIT])
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  expect(lines.some(l => l.startsWith('ui.open release'))).toBe(false)
+})

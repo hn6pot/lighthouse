@@ -46,7 +46,7 @@ Avec le mod [intent](https://github.com/hn6pot/intent) activé, chacune d'elles,
 
 ### Releases
 
-Un dépôt avec une règle `release` (voir Configuration) ne se déploie pas après chaque fusion. Ses PR fusionnées attendent, et son worktree et sa branche sont nettoyés tout de suite. La ligne de résumé les compte (« 4 à sortir »), et **`/release`** ouvre le panneau **Releases**, un cadre par dépôt en mode release :
+Un dépôt avec une règle `release` (voir Configuration) ne se déploie pas après chaque fusion. Ses PR fusionnées attendent, et son worktree et sa branche sont nettoyés tout de suite. La ligne de résumé les compte (« 4 à sortir »). Le panneau **Releases** s'ouvre tout seul, une fois, dans une conversation qui travaille dans un dépôt en mode release avec quelque chose à sortir (plus jamais une fois que tu l'as fermé ; **`/release`** le rouvre, depuis n'importe quelle conversation). Un cadre par dépôt en mode release :
 
 - sa version actuelle et quand elle est sortie ;
 - ce qui attend depuis cette version, lu dans les commits de la base : **Fix** (titres `fix:`), **Features** (`feat:`), et le reste sous **Autres**, replié ;
