@@ -26,19 +26,19 @@ const repo = (over: [RegExp, Answer][] = []): [RegExp, Answer][] => [
   [/pull --ff-only/, {}],
   [/^mkdir -p/, {}],
   [/^rm -f/, {}],
-  [/nohup/, { stdout: '4242\n' }],
+  [/^\/usr\/bin\/perl -MPOSIX -e /, { stdout: '4242\n' }],
 ]
 
 test('refuses when the version changed since the press', async () => {
   const { host, calls } = fakeHost(repo())
   expect(await launchRelease(host, ctx(), 'acme/app', 'v0.2.41')).toEqual({ ok: false, reason: t.releasePane.versionChanged('v0.3.0') })
-  expect(calls.some(c => /nohup|pull/.test(c.line))).toBe(false)
+  expect(calls.some(c => /perl|pull/.test(c.line))).toBe(false)
 })
 
 test('refuses on dirty checkout', async () => {
   const { host, calls } = fakeHost(repo([[/status --porcelain/, { stdout: '?? branding/\n' }]]))
   expect(await launchRelease(host, ctx(), 'acme/app', 'v0.3.0')).toEqual({ ok: false, reason: t.reason.mainDirty })
-  expect(calls.some(c => /nohup/.test(c.line))).toBe(false)
+  expect(calls.some(c => /perl/.test(c.line))).toBe(false)
 })
 
 test('refuses off base', async () => {
@@ -66,8 +66,10 @@ test('launches detached and writes the record', async () => {
   const { host, calls, files: written, state } = fakeHost(repo())
   state.now = 5000
   expect(await launchRelease(host, ctx(), 'acme/app', 'v0.3.0')).toEqual({ ok: true, version: 'v0.3.0' })
-  const launch = calls.find(c => /nohup/.test(c.line))
-  expect(launch?.line).toBe(`/bin/zsh -c nohup /bin/zsh "$0" </dev/null >/dev/null 2>&1 & echo $! ${files.script}`)
+  // In a session of its own (setsid), its output off the pipe: killing the session's process group leaves it running.
+  const launch = calls.find(c => /^\/usr\/bin\/perl/.test(c.line))
+  expect(launch?.line).toContain('POSIX::setsid()')
+  expect(launch?.line).toMatch(new RegExp(` /bin/zsh ${files.script}$`))
   expect(written[files.script]).toContain("cd '/Users/me/r/app'")
   expect(written[files.script]).toContain("/bin/zsh -lc 'make release'")
   expect(JSON.parse(written[files.record])).toEqual({

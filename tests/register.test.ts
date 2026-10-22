@@ -533,7 +533,7 @@ const RELEASE_GIT: [RegExp, string][] = [
   [/log -1 --format=%ct/, '100\n'],
   [/log --first-parent --format=\S+ v0\.2\.40\.\.origin\/main/, commit('a1', 'fix(api): one (#2)') + commit('b2', 'feat(ui): two (#3)') + commit('c3', 'chore: three')],
   [/log --first-parent/, commit('z9', 'feat: first (#1)')],
-  [/nohup/, '4242\n'],
+  [/^\/usr\/bin\/perl -MPOSIX/, '4242\n'],
 ]
 
 test('/release opens the Releases pane', { options: { language: 'fr' } }, async ($, on) => {
@@ -560,7 +560,7 @@ test('releases pane: fix and features apart, the button launches the release det
   expect((await ui.find({ key: 'release-acme/app' }))?.text).toBe('Release v0.3.0')
   await ui.press({ key: 'release-acme/app' })
   await clock.advance(1_000)
-  expect(lines.some(l => /^\/bin\/zsh -c nohup /.test(l))).toBe(true)
+  expect(lines.some(l => /^\/usr\/bin\/perl -MPOSIX -e .*setsid.* \/bin\/zsh \/Users\/me\/\.lighthouse\/releases\/acme__app\.sh$/.test(l))).toBe(true)
 })
 
 test('main pane: the summary counts what waits for a release', { options: { language: 'fr' } }, async ($, on) => {

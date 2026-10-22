@@ -8,8 +8,17 @@ import { latestTag, waiting } from './read'
 import { readRun, runFiles, startScript } from './run'
 import { nextVersion } from './version'
 
-/** `$0` is the script: nohup keeps it alive when the session that launched it ends. */
-const DETACH = 'nohup /bin/zsh "$0" </dev/null >/dev/null 2>&1 & echo $!'
+/**
+ * Starts argv in a session of its own (setsid), its input and output off our pipe, and prints its pid.
+ * nohup alone is not enough: the child stays in the session's process group and dies with it.
+ * The parent waits for the child's setsid (the pipe closes) before it answers, so no kill can come in between.
+ */
+const DETACH = [
+  'pipe(my $r, my $w); my $pid = fork; die "fork: $!" unless defined $pid;',
+  'if ($pid) { close $w; <$r>; print "$pid\\n"; exit 0 }',
+  'close $r; POSIX::setsid(); open STDIN, "<", "/dev/null"; open STDOUT, ">", "/dev/null"; open STDERR, ">&", \\*STDOUT;',
+  'close $w; exec @ARGV or exit 127',
+].join(' ')
 
 type Launch = { ok: true; version: string } | { ok: false; reason: string }
 
@@ -42,7 +51,7 @@ export async function launchRelease(host: Host, ctx: Context, slug: string, show
   // The last run's exit code goes first: it must never be read as this run's.
   await host.run(['rm', '-f', files.code])
   await host.write(files.script, startScript(path, command, log, files.code))
-  const started = await host.run(['/bin/zsh', '-c', DETACH, files.script])
+  const started = await host.run(['/usr/bin/perl', '-MPOSIX', '-e', DETACH, '/bin/zsh', files.script])
   const pid = Number(started.stdout.trim())
   if (started.exitCode !== 0 || !Number.isInteger(pid) || pid <= 0) return { ok: false, reason: t.reason.launchFailed(started.stderr.trim()) }
   await host.write(files.record, JSON.stringify({ pid, startedAt: now, tagAtLaunch: tag, expected: next, log }))
