@@ -80,3 +80,7 @@ test('hostile segment in a path: never a command, doubt', () => {
     reason: 'aucune commande de déploiement ne correspond aux fichiers touchés',
   })
 })
+
+test('a release repo waits for its release instead of deploying', () => {
+  expect(deployPlan({ 'acme/app': { kind: 'release', path: '~/acme/app', command: 'make release' } }, 'acme/app', ['a'], t)).toEqual({ kind: 'release' })
+})

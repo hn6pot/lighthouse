@@ -163,6 +163,9 @@ async function deploy(
   switch (plan.kind) {
     case 'immediate':
       return withNote({ state: 'ok' as const })
+    case 'release':
+      // Nothing to deploy now: the PR waits for the next release, and its worktree is cleaned at once.
+      return { state: 'ok' as const, note: t.chip.waitingRelease }
     case 'delay':
       return delayVerdict(since, plan.ms)
     case 'workflow':

@@ -145,6 +145,7 @@ export type Plan =
   | { kind: 'workflow'; workflow?: string }
   | { kind: 'delay'; ms: number }
   | { kind: 'immediate' }
+  | { kind: 'release' }
   | { kind: 'manual'; command: string }
   | { kind: 'doubt'; reason: string; command?: string }
 

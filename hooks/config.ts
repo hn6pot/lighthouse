@@ -34,6 +34,8 @@ function isRule(value: unknown): value is Rule {
       return typeof value.seconds === 'number' && Number.isFinite(value.seconds) && value.seconds >= 0
     case 'immediate':
       return true
+    case 'release':
+      return typeof value.path === 'string' && value.path !== '' && typeof value.command === 'string' && value.command !== ''
     case 'manual':
       return isDoubt(value.always_doubt) && (value.commands === undefined || (Array.isArray(value.commands) && value.commands.every(isCommandRule)))
     default:
