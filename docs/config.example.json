@@ -10,6 +10,7 @@
         { "only_under": "laptop/", "command": "make install" }
       ]
     },
+    "acme/desktop-app": { "kind": "release", "path": "~/code/desktop-app", "command": "make release" },
     "acme/charts": {
       "kind": "manual",
       "always_doubt": { "en": "production: pick the Helm target by hand", "fr": "production : choisir la cible Helm à la main" }

@@ -44,6 +44,17 @@ Un dernier cadre, **À relire**, liste les PR ouvertes où ta relecture est dema
 
 Avec le mod [intent](https://github.com/hn6pot/intent) activé, chacune d'elles, et chacune de tes propres PR, a un bouton **Relire avec intent** : il lance `/intent <lien de la PR>`, qui ouvre la page de revue d'intent sur cette PR (le pourquoi de chaque changement). Un mod ne peut pas en importer un autre : la commande slash est le seul lien entre les deux ; sans intent, le bouton n'apparaît pas.
 
+### Releases
+
+Un dépôt avec une règle `release` (voir Configuration) ne se déploie pas après chaque fusion. Ses PR fusionnées attendent, et son worktree et sa branche sont nettoyés tout de suite. La ligne de résumé les compte (« 4 à sortir »), et **`/release`** ouvre le panneau **Releases**, un cadre par dépôt en mode release :
+
+- sa version actuelle et quand elle est sortie ;
+- ce qui attend depuis cette version, lu dans les commits de la base : **Fix** (titres `fix:`), **Features** (`feat:`), et le reste sous **Autres**, replié ;
+- un bouton **Release vX.Y.Z**. La version monte le chiffre du milieu si une feature attend, le dernier sinon ; sans rien en attente, pas de bouton. Rien ne sort tant que tu n'appuies pas ;
+- l'**historique** : les 10 derniers tags de version, chacun avec les PR qu'il a apportées.
+
+À l'appui, le mod relit GitHub. Si la version a changé entre-temps (une feature fusionnée), il ne lance rien et montre la nouvelle. Ensuite viennent les mêmes gardes qu'un déploiement manuel : le dossier principal est sur sa base, propre, et `git pull --ff-only` passe. La commande tourne alors **détachée** de la conversation : la fermer ne l'arrête pas. Toutes les conversations la voient « en cours », et une notification dit comment elle a fini : installée, installée mais une étape d'après a échoué (le nouveau tag est là, le code de sortie n'est pas 0), ou échouée (pas de nouveau tag).
+
 Le bandeau au-dessus du prompt ne montre que ce qui t'attend dans cette conversation : un déploiement à confirmer (avec une notification et un bouton « Déployer »), un déploiement en échec (notification, « Déployer » et « Oublier »), et un nettoyage en attente (« Nettoyer », sans notification).
 
 L'état git local est rafraîchi toutes les 10 secondes. GitHub est lu au plus toutes les 30 secondes par dépôt (2 minutes pour les PRs à relire), via un cache partagé par toutes les conversations, et tout de suite après chaque commande git ou gh ou chaque appui sur un bouton.
@@ -112,6 +123,7 @@ La clé est le dépôt sous la forme `owner/repo`, tel que le donne son remote `
 | `delay` | La PR compte comme déployée `seconds` secondes après la fusion. |
 | `immediate` | La PR compte comme déployée tout de suite. |
 | `manual` | Une commande à lancer sur ta machine, choisie selon les fichiers touchés par la PR (voir dessous). |
+| `release` | Rien tout de suite : la PR attend une release que tu lances depuis `/release` (voir [Releases](#releases)). `path` est le dossier principal du dépôt (`~` accepté), et `command` y tourne, via `/bin/zsh -lc`, quand tu appuies sur Release. |
 
 Une règle `manual` liste des `commands`, essayées dans l'ordre. La première qui correspond l'emporte :
 
@@ -171,9 +183,10 @@ Tout est sous `~/.lighthouse/` :
 | `state/` | L'état des PR suivies et les notifications déjà envoyées, un fichier JSON par clé, partagé entre les conversations. |
 | `sessions/` | Une entrée par conversation active : son dossier et ses worktrees. |
 | `locks/` | Les verrous des dépôts. |
-| `logs/` | Les journaux des déploiements lancés par le mod. |
+| `logs/` | Les journaux des déploiements et des releases lancés par le mod. |
+| `releases/` | La dernière release de chaque dépôt en mode release : ce qui a été lancé (un JSON, qui sert aussi de verrou), son script, et son code de sortie une fois finie. |
 
-À part `config.json`, supprimer ce dossier est sans danger, sauf pendant un déploiement. Il est recréé au besoin, mais les PR déjà fusionnées ne seront plus suivies.
+À part `config.json`, supprimer ce dossier est sans danger, sauf pendant un déploiement ou une release. Il est recréé au besoin, mais les PR déjà fusionnées ne seront plus suivies.
 
 ## Développer
 
