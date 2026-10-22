@@ -43,6 +43,17 @@ A last frame, **To review**, lists the open PRs where your review is requested, 
 
 With the [intent](https://github.com/hn6pot/intent) mod enabled, each of them, and each of your own PRs, gets a **Review with intent** button: it runs `/intent <PR link>`, which opens intent's review page on that PR (the why behind each change). A mod cannot import another one, so the slash command is the only link between the two; without intent, the button is not shown.
 
+### Releases
+
+A repo with a `release` rule (see Configuration) does not deploy after each merge. Its merged PRs wait, and its worktree and branch are cleaned at once. The summary line counts them ("4 to release"), and **`/release`** opens the **Releases** pane, one frame per release repo:
+
+- its current version and how long ago it came out;
+- what waits since that version, from the base's commits: **Fix** (`fix:` titles), **Features** (`feat:`), and the rest under **Others**, folded;
+- a **Release vX.Y.Z** button. The version is a minor bump if a feature waits, and a patch bump otherwise; nothing waiting, no button. Nothing is released until you press it;
+- the **history**: the last 10 version tags, each with the PRs it brought.
+
+On a press, the mod fetches again. If the version changed in the meantime (a feature was merged), it launches nothing and shows the new one. Then the same guards as a manual deploy: the main folder is on its base, clean, and `git pull --ff-only` passes. The command then runs **detached** from the session, so closing the session does not stop it. Every session sees it "running", and one notification tells how it ended: installed, installed but a later step failed (the new tag is there, the command's exit code is not 0), or failed (no new tag).
+
 The band above the prompt only shows what waits for you in this session: a deploy doubt (with a notification and a "Deploy" button), a failed deploy (notification, "Deploy" and "Forget"), and a cleanup doubt ("Clean up", no notification).
 
 The local git state is refreshed every 10 seconds. GitHub is read at most every 30 seconds per repo (2 minutes for the PRs to review), through a cache shared by all sessions, and at once after any git or gh command or a button press.
@@ -111,6 +122,7 @@ The key is the repo as `owner/repo`, as its `origin` remote says. The `kind` fie
 | `delay` | The PR counts as deployed `seconds` after the merge. |
 | `immediate` | The PR counts as deployed at once. |
 | `manual` | A command to run on your machine, picked from the files the PR touched (see below). |
+| `release` | Nothing at once: the PR waits for a release you start from `/release` (see [Releases](#releases)). `path` is the repo's main folder (`~` allowed), and `command` runs there, through `/bin/zsh -lc`, when you press Release. |
 
 A `manual` rule lists `commands`, tried in order. The first one that matches wins:
 
@@ -170,9 +182,10 @@ Everything lives under `~/.lighthouse/`:
 | `state/` | The state of tracked PRs and the notifications already sent, one JSON file per key, shared between sessions. |
 | `sessions/` | One entry per active session: its folder and worktrees. |
 | `locks/` | Repo locks. |
-| `logs/` | Logs of the deploys the mod launched. |
+| `logs/` | Logs of the deploys and releases the mod launched. |
+| `releases/` | The last release of each release repo: what was launched (a JSON record, also the lock), its script, and its exit code once done. |
 
-Apart from `config.json`, deleting this folder is safe, unless a deploy is running. It is recreated when needed, but PRs that were already merged will no longer be tracked.
+Apart from `config.json`, deleting this folder is safe, unless a deploy or a release is running. It is recreated when needed, but PRs that were already merged will no longer be tracked.
 
 ## Develop
 

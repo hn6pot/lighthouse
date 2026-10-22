@@ -145,8 +145,43 @@ export type Plan =
   | { kind: 'workflow'; workflow?: string }
   | { kind: 'delay'; ms: number }
   | { kind: 'immediate' }
+  | { kind: 'release' }
   | { kind: 'manual'; command: string }
   | { kind: 'doubt'; reason: string; command?: string }
 
 /** A GitHub Actions run. */
 export type Run = { name: string; status: string; conclusion: string | null; url: string }
+
+/** What a commit on the base brought, for the Releases pane. */
+export type ReleaseKind = 'fix' | 'feat' | 'other'
+
+/** `title` without its `type(scope): ` prefix nor its ` (#N)` suffix; `number` null without a PR. */
+export type ReleaseEntry = { sha: string; number: number | null; title: string; kind: ReleaseKind }
+
+/** A past release: its tag, its date (ms), and the commits since the release before it. */
+export type ReleaseTag = { tag: string; date: number; entries: ReleaseEntry[]; ago?: string }
+
+/** What a detached release left in `~/.lighthouse/releases/<owner>__<repo>.json`. */
+export type ReleaseRecord = { pid: number; startedAt: number; tagAtLaunch: string | null; expected: string; log: string; code: string }
+
+/** Where a repo's last release stands. `warning`: a new tag, but the command failed after it. */
+export type ReleaseRun =
+  | { kind: 'idle' }
+  | { kind: 'running'; startedAt: number; expected: string }
+  | { kind: 'done'; startedAt: number; outcome: 'ok' | 'warning' | 'failed' | 'died'; version: string | null; lastLine: string; log: string }
+
+/** A repo with a release rule, as the Releases pane shows it. `refusal`: why the last press launched nothing. */
+export type ReleaseRepo = {
+  slug: string
+  name: string
+  path: string
+  base: string
+  tag: string | null
+  waiting: ReleaseEntry[]
+  next: string
+  history: ReleaseTag[]
+  run: ReleaseRun
+  /** Worded at the tick (so the pane redraws when they change): how long the running release has run, in minutes. */
+  runningMin?: number
+  refusal?: string
+}

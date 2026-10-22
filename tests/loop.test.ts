@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 import { loadTracked, save } from '../hooks/flow/state'
 import { texts } from '../hooks/i18n'
 import { addFolder, addPrLink, CLEANUP_RETRY_MS, cleanNow, forgetNow, refreshConfig, tick, type Context } from '../hooks/loop'
-import type { ReviewRequest, TreeState, Tracked } from '../hooks/model'
+import type { ReleaseRepo, ReviewRequest, TreeState, Tracked } from '../hooks/model'
 import { fakeHost, type Answer } from './helpers/fake-host'
 
 const t = texts('fr')
@@ -23,12 +23,13 @@ const ctx = (): Context => ({ id: 'me', cwd: '/w', repos: new Map(), lastFetch: 
 
 function actions() {
   const notifications: string[] = []
-  const published: { trees: TreeState[]; events: Tracked[]; reviews: ReviewRequest[] }[] = []
+  const published: { trees: TreeState[]; events: Tracked[]; reviews: ReviewRequest[]; releases: ReleaseRepo[] }[] = []
   return {
     notifications, published,
     actions: {
       notify: async (_key: string, text: string) => void notifications.push(text),
-      publish: async (trees: TreeState[], events: Tracked[], reviews: ReviewRequest[]) => void published.push({ trees, events, reviews }),
+      publish: async (trees: TreeState[], events: Tracked[], reviews: ReviewRequest[], releases: ReleaseRepo[]) =>
+        void published.push({ trees, events, reviews, releases }),
     },
   }
 }
@@ -670,4 +671,18 @@ test('the PRs to review are shared through the store while fresh', async () => {
   await tick(h.host, { ...ctx(), reviewsMaxAge: 120_000 }, actions().actions) // another session, same store
   // Two accounts (the active one and acme's), asked once.
   expect(h.calls.filter(x => x.line.startsWith('gh search prs'))).toHaveLength(2)
+})
+
+test('the tick publishes the release repos of the config, even without a session repo', async () => {
+  const h = fakeHost([
+    [/symbolic-ref/, { stdout: 'origin/main\n' }],
+    [/fetch --quiet origin main/, {}],
+    [/for-each-ref --merged origin\/main/, { stdout: 'v0.2.40 100\n' }],
+    [/log --first-parent/, { stdout: '' }],
+    [/^gh/, { stdout: '[]' }],
+  ])
+  const c: Context = { ...ctx(), config: { rules: { 'acme/app': { kind: 'release', path: '~/r/app', command: 'make release' } }, ghConfigDirs: {} } }
+  const a = actions()
+  await tick(h.host, c, a.actions)
+  expect(a.published[0].releases.map(r => [r.slug, r.tag])).toEqual([['acme/app', 'v0.2.40']])
 })

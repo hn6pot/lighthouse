@@ -71,3 +71,17 @@ test('ghConfigDirs from the file maps the owner of a repo to its gh account', as
   expect(ghEnv('globex/web', host.home, ghConfigDirs)).toEqual({ GH_CONFIG_DIR: '/opt/gh-globex' })
   expect(ghEnv('initech/api', host.home, ghConfigDirs)).toBeUndefined()
 })
+
+test('a release rule keeps its path and command', () => {
+  const rule = { kind: 'release', path: '~/acme/app', command: 'make release' }
+  expect(parseConfig(JSON.stringify({ rules: { 'acme/app': rule } })).rules).toEqual({ 'acme/app': rule })
+})
+
+test('a release rule without a path or a command is left out', () => {
+  const rules = {
+    'acme/a': { kind: 'release', command: 'make release' },
+    'acme/b': { kind: 'release', path: '~/acme/b' },
+    'acme/c': { kind: 'release', path: 1, command: 'make release' },
+  }
+  expect(parseConfig(JSON.stringify({ rules })).rules).toEqual({})
+})

@@ -21,6 +21,8 @@ export function drawPane(
   pressed: Readonly<Record<string, boolean>>,
   reviews: readonly ReviewRequest[],
   intent: boolean,
+  /** Merged PRs waiting in the release repos: counted in the summary line. */
+  toRelease: number,
   buttons: Buttons,
   t: Texts,
 ) {
@@ -233,7 +235,7 @@ export function drawPane(
       {/* The essentials, even with everything folded; refresh at the end of the line. */}
       <Box gap={1}>
         <Box flexGrow={1} flexShrink={1}>
-          <Text dimColor wrap="truncate-end">{summaryLine(trees, events, t)}</Text>
+          <Text dimColor wrap="truncate-end">{summaryLine(trees, events, t, toRelease)}</Text>
         </Box>
         {refresh}
       </Box>

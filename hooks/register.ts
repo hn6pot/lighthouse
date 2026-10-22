@@ -11,7 +11,7 @@ import { fileStore, type Host } from './host'
 import { langOf, texts, type Texts } from './i18n'
 import { NO_CONFIG } from './config'
 import { addFolder, addPrLink, cleanNow, forgetNow, refreshConfig, tick, type Context } from './loop'
-import type { TreeState } from './model'
+import type { ReleaseRepo, TreeState } from './model'
 import { prLinks, touchedFolders } from './repos/detect'
 import { push } from './repos/git'
 import { DATA_DIR, forgetSession, record } from './sessions/registry'
@@ -19,6 +19,8 @@ import { drawBand, type Buttons } from './ui/band'
 import { actionPrompt, branchPrompt, CHECK_FRAMES, tidyPrompt } from './ui/lines'
 import { notifyOnce, sendNotification } from './ui/notify'
 import { drawPane, PANE } from './ui/pane'
+import { drawReleasePane } from './ui/release-pane'
+import { launchRelease } from './release/launch'
 
 const TICK_MS = 10_000
 /** After a git or gh command, the tick starts this much later: a burst of commands makes only one. */
@@ -47,6 +49,8 @@ const REFRESHING = atom({ plugin: 'lighthouse', key: 'refreshing' } as const, fa
 /** The PRs where my review is requested, and whether the intent mod can review them. */
 const REVIEWS = atom({ plugin: 'lighthouse', key: 'reviews' } as const, [])
 const INTENT = atom({ plugin: 'lighthouse', key: 'intent' } as const, false)
+/** The repos with a release rule, for the Releases pane (and the main pane's counter). */
+const RELEASES = atom({ plugin: 'lighthouse', key: 'releases' } as const, [])
 /** The PRs to review are asked to GitHub at most this often (its search API is rate-limited), unless Refresh is pressed. */
 const REVIEWS_FRESH_MS = 2 * 60_000
 /** Only a GitHub PR link goes to `/intent`. */
@@ -89,6 +93,10 @@ type State = {
   intent: boolean
   /** What was last drawn, to redraw only on change. */
   drawn: string
+  /** Release repos (slug) whose last press launched nothing, and why: shown in their block until the next press. */
+  releaseRefusals: Map<string, string>
+  /** The release repos as published at the last tick. */
+  releases: ReleaseRepo[]
   /** Cleaned PRs whose check was already drawn in this session: never again. */
   celebrated: Set<string>
   /** The start of this session's first prompt: how the other sessions name it. */
@@ -310,6 +318,15 @@ const buttons = ($: EngineInterface, state: State): Buttons => {
         state.ctx.cwd = await $.session.cwd()
         $.ui.toast(await cleanNow(state.host, state.ctx, key))
       })().catch(fail),
+    release: (slug, shown) =>
+      (async () => {
+        if (!state.host || !state.ctx) return
+        const launched = await launchRelease(state.host, state.ctx, slug, shown)
+        if (launched.ok) state.releaseRefusals.delete(slug)
+        else state.releaseRefusals.set(slug, launched.reason)
+        $.ui.toast(launched.ok ? t.releasePane.launched(launched.version) : launched.reason)
+        await state.tickNow()
+      })().catch(fail),
     forget: key =>
       (async () => {
         if (!state.host) return
@@ -324,7 +341,7 @@ export const register: Register = (on, options) => {
   const t = texts(langOf(options.language))
   const state: State = {
     t, host: null, ctx: null, entrusted: new Map(), folders: new Set(), links: new Map(), sending: new Set(),
-    trees: [], pendingMerge: null, pane: null, rerun: () => undefined, tickNow: async () => undefined, activities: new Map(), agents: new Map(), forceGh: false, forceReviews: false, intent: false, drawn: '', celebrated: new Set(), label: null,
+    trees: [], pendingMerge: null, pane: null, rerun: () => undefined, tickNow: async () => undefined, activities: new Map(), agents: new Map(), forceGh: false, forceReviews: false, intent: false, drawn: '', celebrated: new Set(), label: null, releaseRefusals: new Map(), releases: [],
   }
   let running = false
   let replay = false
@@ -332,6 +349,7 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'lighthouse', description: t.commandDescription })
+    await $.command.register({ name: 'release', description: t.releaseCommandDescription })
     const host = (state.host = await hostFrom($))
     const cwd = await $.session.cwd()
     const ctx = (state.ctx = { id: await $.session.id(), cwd, repos: new Map(), lastFetch: new Map(), logins: new Map(), t, config: NO_CONFIG } as Context)
@@ -402,15 +420,21 @@ export const register: Register = (on, options) => {
         await tick(host, ctx, {
           notify: (key, text) =>
             notifyOnce(host.store, x => sendNotification(host, y => $.ui.notify(y, { title: 'lighthouse' }), x), key, text),
-          publish: async (trees, events, reviews) => {
+          publish: async (trees, events, reviews, found) => {
             state.trees = trees
             for (const s of events) if (s.stage === 'cleaned' && !state.celebrated.has(s.key)) celebrate(s.key)
-            const drawn = JSON.stringify([trees, events, reviews])
+            const releases = found.map(r => {
+              const refusal = state.releaseRefusals.get(r.slug)
+              return refusal ? { ...r, refusal } : r
+            })
+            state.releases = releases
+            const drawn = JSON.stringify([trees, events, reviews, releases])
             if (drawn === state.drawn) return // nothing changed: no redraw
             state.drawn = drawn
             await update($, TREES, () => trees)
             await update($, EVENTS, () => events)
             await update($, REVIEWS, () => reviews)
+            await update($, RELEASES, () => releases)
           },
         })
         // On the side as soon as there is a repo to show; never reopened on its own once closed by hand.
@@ -533,11 +557,20 @@ export const register: Register = (on, options) => {
     return {}
   })
 
+  // Literal: the validator refuses an imported constant; same value as RELEASE_PANE (ui/release-pane.tsx).
+  on('command.run', { command: 'release' }, async $ => {
+    await $.ui.open({ id: 'release', title: t.releasePaneTitle, focus: true })
+    return {}
+  })
+  on('ui.render', { component: 'Pane', requestId: 'release' }, async ($, e) =>
+    drawReleasePane($.ui.resolve(e), await read($, RELEASES), await read($, EXPANDED), await read($, REFRESHING), await read($, PRESSED), buttons($, state), t),
+  )
+
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) =>
     drawBand($.ui.resolve(e), await read($, EVENTS), await read($, PRESSED), buttons($, state), t) ?? next(e),
   )
   // Literal: the validator refuses an imported constant; same value as PANE (ui/pane.tsx).
   on('ui.render', { component: 'Pane', requestId: 'lighthouse' }, async ($, e) =>
-    drawPane($.ui.resolve(e), await read($, TREES), await read($, EVENTS), await read($, EXPANDED), await read($, PENDING_MERGE), await read($, ACTIVITIES), await read($, CELEBRATING), await read($, REFRESHING), await read($, PRESSED), await read($, REVIEWS), await read($, INTENT), buttons($, state), t),
+    drawPane($.ui.resolve(e), await read($, TREES), await read($, EVENTS), await read($, EXPANDED), await read($, PENDING_MERGE), await read($, ACTIVITIES), await read($, CELEBRATING), await read($, REFRESHING), await read($, PRESSED), await read($, REVIEWS), await read($, INTENT), (await read($, RELEASES)).reduce((n, r) => n + r.waiting.length, 0), buttons($, state), t),
   )
 }

@@ -8,6 +8,8 @@ export type Rule =
   | { kind: 'delay'; seconds: number }
   | { kind: 'immediate' }
   | { kind: 'manual'; commands?: CommandRule[]; always_doubt?: string | Record<Lang, string> }
+  /** Merged PRs wait; `command` runs in `path` when the person presses Release (release/). */
+  | { kind: 'release'; path: string; command: string }
 /** Rules per repo (`owner/repo`), from the config file (config.ts). */
 export type Rules = Record<string, Rule>
 
@@ -52,6 +54,8 @@ export function deployPlan(rules: Rules, slug: string, files: readonly string[],
       return { kind: 'delay', ms: rule.seconds * 1000 }
     case 'immediate':
       return { kind: 'immediate' }
+    case 'release':
+      return { kind: 'release' }
     case 'manual': {
       if (rule.always_doubt) {
         return { kind: 'doubt', reason: typeof rule.always_doubt === 'string' ? rule.always_doubt : rule.always_doubt[t.lang] }
