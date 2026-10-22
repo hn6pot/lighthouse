@@ -26,6 +26,8 @@ export type Buttons = {
   openPr: (root: string, branch: string) => Promise<void> | void
   /** Opens the PR's review in the intent mod (`/intent <link>`). */
   intent: (url: string) => Promise<void> | void
+  /** Launches the release of a release repo; `shown` is the version its button showed. */
+  release: (slug: string, shown: string) => Promise<void> | void
 }
 
 /** Components and `$` stay in register.ts: Claude Code refuses `$` crossing an import. */

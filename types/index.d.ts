@@ -96,6 +96,29 @@ export type LighthouseReview = {
 
 export type LighthouseActivity = { id: string; root: string; text: string; number?: number; branch?: string; folder?: string }
 
+export type LighthouseReleaseEntry = { sha: string; number: number | null; title: string; kind: 'fix' | 'feat' | 'other' }
+
+export type LighthouseReleaseTag = { tag: string; date: number; entries: LighthouseReleaseEntry[]; ago?: string }
+
+export type LighthouseReleaseRun =
+  | { kind: 'idle' }
+  | { kind: 'running'; startedAt: number; expected: string }
+  | { kind: 'done'; startedAt: number; outcome: 'ok' | 'warning' | 'failed' | 'died'; version: string | null; lastLine: string; log: string }
+
+export type LighthouseReleaseRepo = {
+  slug: string
+  name: string
+  path: string
+  base: string
+  tag: string | null
+  waiting: LighthouseReleaseEntry[]
+  next: string
+  history: LighthouseReleaseTag[]
+  run: LighthouseReleaseRun
+  runningMin?: number
+  refusal?: string
+}
+
 declare module 'claude-code' {
   interface PluginState {
     lighthouse: {
@@ -119,6 +142,8 @@ declare module 'claude-code' {
       reviews: LighthouseReview[]
       /** The intent mod's `/intent` command is there: the PRs get a "Review with intent" button. */
       intent: boolean
+      /** The repos with a release rule: what waits, the next version, the last run, the history. */
+      releases: LighthouseReleaseRepo[]
     }
   }
 }

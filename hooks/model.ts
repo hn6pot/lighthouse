@@ -159,7 +159,7 @@ export type ReleaseKind = 'fix' | 'feat' | 'other'
 export type ReleaseEntry = { sha: string; number: number | null; title: string; kind: ReleaseKind }
 
 /** A past release: its tag, its date (ms), and the commits since the release before it. */
-export type ReleaseTag = { tag: string; date: number; entries: ReleaseEntry[] }
+export type ReleaseTag = { tag: string; date: number; entries: ReleaseEntry[]; ago?: string }
 
 /** What a detached release left in `~/.lighthouse/releases/<owner>__<repo>.json`. */
 export type ReleaseRecord = { pid: number; startedAt: number; tagAtLaunch: string | null; expected: string; log: string }
@@ -181,5 +181,7 @@ export type ReleaseRepo = {
   next: string
   history: ReleaseTag[]
   run: ReleaseRun
+  /** Worded at the tick (so the pane redraws when they change): how long the running release has run, in minutes. */
+  runningMin?: number
   refusal?: string
 }

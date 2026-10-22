@@ -246,12 +246,13 @@ export function reviewFacts(r: ReviewRequest, now: number, t: Texts): string {
 }
 
 /** The pane's first line: open PRs, merged PRs waiting for their deploy, work waiting to be pushed. */
-export function summaryLine(trees: readonly TreeState[], events: readonly Tracked[], t: Texts): string {
+/** `toRelease`: merged PRs waiting for a release, in the release repos of the config. */
+export function summaryLine(trees: readonly TreeState[], events: readonly Tracked[], t: Texts, toRelease = 0): string {
   const prs = trees.reduce((n, a) => n + a.prs.length, 0)
   const toDeploy = events.filter(s => s.stage === 'merged' || s.stage === 'deploying' || s.stage === 'deploy-doubt' || s.stage === 'failed').length
   const toPush =
     trees.reduce((n, a) => n + a.prs.filter(p => p.unpushed > 0).length + a.branches.filter(b => b.remote === 'none' || b.unpushed > 0).length, 0)
-  const parts = [prs > 0 ? t.summary.prs(prs) : '', toDeploy > 0 ? t.summary.toDeploy(toDeploy) : '', toPush > 0 ? t.summary.toPush(toPush) : ''].filter(Boolean)
+  const parts = [prs > 0 ? t.summary.prs(prs) : '', toDeploy > 0 ? t.summary.toDeploy(toDeploy) : '', toPush > 0 ? t.summary.toPush(toPush) : '', toRelease > 0 ? t.summary.toRelease(toRelease) : ''].filter(Boolean)
   return parts.length > 0 ? parts.join(' · ') : t.summary.nothing
 }
 

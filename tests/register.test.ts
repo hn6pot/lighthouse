@@ -524,3 +524,51 @@ test('without the intent mod, no « Relire avec intent » button', { options: { 
   expect(await ui.find({ key: 'review-intent-beta/api#9' })).toBeUndefined()
   expect(await ui.find({ key: 'intent-acme/web#5' })).toBeUndefined()
 })
+
+const RELEASE_PANE = { component: 'Pane', requestId: 'release', props: { title: 'Releases', isFocused: false, bodyColumns: 60, placement: 'dock' } } as never
+const RELEASE_CONFIG = JSON.stringify({ rules: { 'acme/app': { kind: 'release', path: '/w/app', command: 'make release' } }, ghConfigDirs: {} })
+const commit = (sha: string, subject: string) => `${sha}\x1f${subject}\x1f\x1e\n`
+const RELEASE_GIT: [RegExp, string][] = [
+  [/tag --merged origin\/main/, 'v0.2.40\n'],
+  [/log -1 --format=%ct/, '100\n'],
+  [/log --first-parent --format=\S+ v0\.2\.40\.\.origin\/main/, commit('a1', 'fix(api): one (#2)') + commit('b2', 'feat(ui): two (#3)') + commit('c3', 'chore: three')],
+  [/log --first-parent/, commit('z9', 'feat: first (#1)')],
+  [/nohup/, '4242\n'],
+]
+
+test('/release opens the Releases pane', { options: { language: 'fr' } }, async ($, on) => {
+  const lines = engine(on, { [CONFIG_FILE]: RELEASE_CONFIG }, { cwd: '/w/web' }, undefined, [], RELEASE_GIT)
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  expect(lines).toContain('command release: Les releases à sortir, et leur historique')
+  await $.command.run({ command: 'release', args: '' } as never)
+  expect(lines).toContain('ui.open release Releases')
+})
+
+test('releases pane: fix and features apart, the button launches the release detached', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const lines = engine(on, { [CONFIG_FILE]: RELEASE_CONFIG }, { cwd: '/w/web' }, undefined, [], RELEASE_GIT)
+  on('ui.toast', async () => ({ value: undefined }) as never)
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  await $.command.run({ command: 'release', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'lighthouse', surface: 'desktop', ...(RELEASE_PANE as object) } as never)
+  expect(await ui.find({ type: 'Text', text: 'Fix (1)' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Features (1)' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'one' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'three' })).toBeUndefined() // Others start folded
+  expect((await ui.find({ key: 'toggle-release:acme/app:others' }))?.text).toBe('▶ Autres (1)')
+  expect((await ui.find({ key: 'release-acme/app' }))?.text).toBe('Release v0.3.0')
+  await ui.press({ key: 'release-acme/app' })
+  await clock.advance(1_000)
+  expect(lines.some(l => /^\/bin\/zsh -c nohup /.test(l))).toBe(true)
+})
+
+test('main pane: the summary counts what waits for a release', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  engine(on, { [CONFIG_FILE]: RELEASE_CONFIG }, { cwd: '/w/web' }, undefined, [], RELEASE_GIT)
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  const ui = await $.ui.mount({ plugin: 'lighthouse', surface: 'desktop', ...(PANE as object) } as never)
+  expect(await ui.find({ type: 'Text', text: 'rien en attente · 3 à sortir' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: '3 à sortir' })).toBeDefined()
+})

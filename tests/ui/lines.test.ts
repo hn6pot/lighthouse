@@ -245,6 +245,11 @@ test('summary line: PRs, what waits to be deployed, what waits to be pushed', ()
   expect(summaryLine([{ ...A }], [], en)).toBe('nothing waiting')
 })
 
+test('summary line: what waits for a release', () => {
+  expect(summaryLine([{ ...A }], [], t, 4)).toBe('4 à sortir')
+  expect(summaryLine([{ ...A }], [], t, 0)).toBe('rien en attente')
+})
+
 test('the repo line shows the last release and how much came since', () => {
   expect(repoDetails({ ...A, release: { tag: 'v1.4.0', since: 12 } }, en)).toBe('feat/x · v1.4.0 +12')
   expect(repoDetails({ ...A, release: { tag: 'v1.4.0', since: 0 } }, en)).toBe('feat/x · v1.4.0')

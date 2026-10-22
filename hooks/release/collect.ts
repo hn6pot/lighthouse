@@ -35,10 +35,12 @@ async function readRepo(host: Host, ctx: Context, slug: string, path: string): P
   await fetchBase(host, ctx, path, base)
   const tag = await latestTag(host, path, base)
   const entries = await waiting(host, path, base, tag)
-  return {
-    slug, name: nameOf(path), path, base, tag, waiting: entries, next: nextVersion(tag, entries),
-    history: await history(host, path, base), run: await readRun(host, slug, tag),
-  }
+  const now = await host.now()
+  const run = await readRun(host, slug, tag)
+  const past = (await history(host, path, base)).map(h => ({ ...h, ago: ctx.t.facts.ago(now - h.date) }))
+  const repo: ReleaseRepo = { slug, name: nameOf(path), path, base, tag, waiting: entries, next: nextVersion(tag, entries), history: past, run }
+  if (run.kind === 'running') repo.runningMin = Math.max(0, Math.floor((now - run.startedAt) / 60_000))
+  return repo
 }
 
 export function outcomeText(name: string, run: Extract<ReleaseRun, { kind: 'done' }>, t: Texts): string {
