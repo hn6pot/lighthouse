@@ -4,7 +4,7 @@ import type { Context } from '../loop'
 import { baseBranch, treeState } from '../repos/git'
 import { DATA_DIR } from '../sessions/registry'
 import { fetchBase, releaseRules } from './collect'
-import { latestTag, waiting } from './read'
+import { latestTag, versionTags, waiting } from './read'
 import { readRun, runFiles, startScript } from './run'
 import { nextVersion } from './version'
 
@@ -32,7 +32,7 @@ export async function launchRelease(host: Host, ctx: Context, slug: string, show
   if ((await readRun(host, slug, null)).kind === 'running') return { ok: false, reason: t.releasePane.alreadyRunning }
 
   await fetchBase(host, ctx, path, base, true)
-  const tag = await latestTag(host, path, base)
+  const tag = latestTag(await versionTags(host, path, base))
   const entries = await waiting(host, path, base, tag)
   if (entries.length === 0) return { ok: false, reason: t.releasePane.nothing }
   const next = nextVersion(tag, entries)

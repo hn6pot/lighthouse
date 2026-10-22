@@ -677,8 +677,7 @@ test('the tick publishes the release repos of the config, even without a session
   const h = fakeHost([
     [/symbolic-ref/, { stdout: 'origin/main\n' }],
     [/fetch --quiet origin main/, {}],
-    [/tag --merged origin\/main/, { stdout: 'v0.2.40\n' }],
-    [/log -1 --format=%ct/, { stdout: '100\n' }],
+    [/for-each-ref --merged origin\/main/, { stdout: 'v0.2.40 100\n' }],
     [/log --first-parent/, { stdout: '' }],
     [/^gh/, { stdout: '[]' }],
   ])

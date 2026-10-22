@@ -529,8 +529,7 @@ const RELEASE_PANE = { component: 'Pane', requestId: 'release', props: { title: 
 const RELEASE_CONFIG = JSON.stringify({ rules: { 'acme/app': { kind: 'release', path: '/w/app', command: 'make release' } }, ghConfigDirs: {} })
 const commit = (sha: string, subject: string) => `${sha}\x1f${subject}\x1f\x1e\n`
 const RELEASE_GIT: [RegExp, string][] = [
-  [/tag --merged origin\/main/, 'v0.2.40\n'],
-  [/log -1 --format=%ct/, '100\n'],
+  [/for-each-ref --merged origin\/main/, 'v0.2.40 100\n'],
   [/log --first-parent --format=\S+ v0\.2\.40\.\.origin\/main/, commit('a1', 'fix(api): one (#2)') + commit('b2', 'feat(ui): two (#3)') + commit('c3', 'chore: three')],
   [/log --first-parent/, commit('z9', 'feat: first (#1)')],
   [/^\/usr\/bin\/perl -MPOSIX/, '4242\n'],

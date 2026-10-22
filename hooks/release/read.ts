@@ -8,31 +8,37 @@ const FORMAT = '--format=%H%x1f%s%x1f%b%x1e'
 
 const git = (host: Host, path: string, ...args: string[]) => host.run(['git', '-C', path, ...args])
 
-async function versionTags(host: Host, path: string, base: string): Promise<string[]> {
-  const list = await git(host, path, 'tag', '--merged', `origin/${base}`, '--list', 'v*')
-  return list.exitCode === 0 ? sortVersionTags(list.stdout.split('\n').map(l => l.trim())) : []
+/** A version tag and when it was made (ms): the tagger's date for an annotated tag, its commit's for a light one. */
+export type VersionTag = { tag: string; date: number }
+
+/** The `vX.Y.Z` tags merged into the base, lowest version first: one git call, dates included. */
+export async function versionTags(host: Host, path: string, base: string): Promise<VersionTag[]> {
+  const list = await git(host, path, 'for-each-ref', '--merged', `origin/${base}`, '--format=%(refname:short) %(creatordate:unix)', 'refs/tags/v*')
+  if (list.exitCode !== 0) return []
+  const dates = new Map<string, number>()
+  for (const line of list.stdout.split('\n')) {
+    const [tag = '', date = ''] = line.trim().split(' ')
+    if (tag !== '') dates.set(tag, Number(date) * 1000 || 0)
+  }
+  return sortVersionTags([...dates.keys()]).map(tag => ({ tag, date: dates.get(tag) ?? 0 }))
 }
 
 const entries = async (host: Host, path: string, range: string) => parseLog((await git(host, path, 'log', '--first-parent', FORMAT, range)).stdout)
 
-/** The highest `vX.Y.Z` merged into the base, by version; null without one. */
-export async function latestTag(host: Host, path: string, base: string): Promise<string | null> {
-  return (await versionTags(host, path, base)).at(-1) ?? null
-}
+/** The highest version among `tags` (sorted by versionTags); null without one. */
+export const latestTag = (tags: readonly VersionTag[]): string | null => tags.at(-1)?.tag ?? null
 
 /** The base's commits since `tag` (all of them without a tag), newest first. */
 export function waiting(host: Host, path: string, base: string, tag: string | null): Promise<ReleaseEntry[]> {
   return entries(host, path, tag ? `${tag}..origin/${base}` : `origin/${base}`)
 }
 
-/** The last `limit` releases, newest first, each with the commits since the one before it. */
-export async function history(host: Host, path: string, base: string, limit = 10): Promise<ReleaseTag[]> {
-  const tags = await versionTags(host, path, base)
+/** The last `limit` releases among `tags`, newest first, each with the commits since the one before it. */
+export async function history(host: Host, path: string, tags: readonly VersionTag[], limit = 10): Promise<ReleaseTag[]> {
   const out: ReleaseTag[] = []
   for (let i = tags.length - 1; i >= 0 && out.length < limit; i--) {
-    const tag = tags[i]
-    const previous = tags[i - 1]
-    const date = Number((await git(host, path, 'log', '-1', '--format=%ct', tag)).stdout.trim()) * 1000 || 0
+    const { tag, date } = tags[i]!
+    const previous = tags[i - 1]?.tag
     out.push({ tag, date, entries: await entries(host, path, previous ? `${previous}..${tag}` : tag) })
   }
   return out

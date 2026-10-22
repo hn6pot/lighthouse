@@ -2,10 +2,11 @@
 import type { Host } from '../host'
 import type { Context } from '../loop'
 import type { Texts } from '../i18n'
-import type { ReleaseRepo, ReleaseRun } from '../model'
+import type { ReleaseRepo, ReleaseRun, ReleaseTag } from '../model'
+import type { VersionTag } from './read'
 import { expandHome } from '../github/gh'
 import { baseBranch, refresh } from '../repos/git'
-import { history, latestTag, waiting } from './read'
+import { history, latestTag, versionTags, waiting } from './read'
 import { readRun } from './run'
 import { nextVersion } from './version'
 
@@ -30,14 +31,29 @@ export async function fetchBase(host: Host, ctx: Context, path: string, base: st
   ctx.lastFetch.set(path, now)
 }
 
+/** The history of each release repo (by folder), read again only when its tag list changes. */
+const histories = new WeakMap<Context, Map<string, { key: string; history: ReleaseTag[] }>>()
+
+async function pastReleases(host: Host, ctx: Context, path: string, tags: readonly VersionTag[]): Promise<ReleaseTag[]> {
+  const byPath = histories.get(ctx) ?? new Map<string, { key: string; history: ReleaseTag[] }>()
+  histories.set(ctx, byPath)
+  const key = tags.map(t => `${t.tag}@${t.date}`).join(' ')
+  const known = byPath.get(path)
+  if (known?.key === key) return known.history
+  const past = await history(host, path, tags)
+  byPath.set(path, { key, history: past })
+  return past
+}
+
 async function readRepo(host: Host, ctx: Context, slug: string, path: string): Promise<ReleaseRepo> {
   const base = await baseBranch(host, path)
   await fetchBase(host, ctx, path, base)
-  const tag = await latestTag(host, path, base)
+  const tags = await versionTags(host, path, base)
+  const tag = latestTag(tags)
   const entries = await waiting(host, path, base, tag)
   const now = await host.now()
   const run = await readRun(host, slug, tag)
-  const past = (await history(host, path, base)).map(h => ({ ...h, ago: ctx.t.facts.ago(now - h.date) }))
+  const past = (await pastReleases(host, ctx, path, tags)).map(h => ({ ...h, ago: ctx.t.facts.ago(now - h.date) }))
   const repo: ReleaseRepo = { slug, name: nameOf(path), path, base, tag, waiting: entries, next: nextVersion(tag, entries), history: past, run }
   if (run.kind === 'running') repo.runningMin = Math.max(0, Math.floor((now - run.startedAt) / 60_000))
   return repo

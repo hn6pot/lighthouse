@@ -17,8 +17,7 @@ const record = (sha: string, subject: string) => `${sha}\x1f${subject}\x1f\x1e\n
 const GIT: [RegExp, Answer][] = [
   [/symbolic-ref/, { stdout: 'origin/main\n' }],
   [/fetch --quiet origin main/, {}],
-  [/tag --merged origin\/main/, { stdout: 'v0.2.40\n' }],
-  [/log -1 --format=%ct/, { stdout: '100\n' }],
+  [/for-each-ref --merged origin\/main/, { stdout: 'v0.2.40 100\n' }],
   [/log --first-parent --format=\S+ v0\.2\.40\.\.origin\/main/, { stdout: record('a1', 'fix: one (#2)') }],
   [/log --first-parent/, { stdout: '' }],
 ]
@@ -60,4 +59,23 @@ test('fetches at most every RELEASE_FETCH_MS', async () => {
 test('an unreadable release repo is left out, the others kept', async () => {
   const { host } = fakeHost([[/symbolic-ref/, () => { throw new Error('boom') }]])
   expect(await collectReleases(host, ctx(), notifier().notify)).toEqual([])
+})
+
+test('the history is read again only when the tag list changes', async () => {
+  let tags = 'v0.2.40 100\n'
+  const { host, calls } = fakeHost([[/for-each-ref --merged/, () => ({ stdout: tags })], ...GIT])
+  const c = ctx()
+  const historyReads = () => calls.filter(x => /log --first-parent --format=\S+ v0\.2\.40$/.test(x.line)).length
+  await collectReleases(host, c, notifier().notify)
+  await collectReleases(host, c, notifier().notify)
+  expect(historyReads()).toBe(1)
+  tags = 'v0.2.40 100\nv0.2.41 200\n'
+  await collectReleases(host, c, notifier().notify)
+  expect(historyReads()).toBe(2)
+})
+
+test('the history is dated by the tag, not by its commit', async () => {
+  const { host } = fakeHost(GIT)
+  const [repo] = await collectReleases(host, ctx(), notifier().notify)
+  expect(repo?.history[0]?.date).toBe(100_000)
 })

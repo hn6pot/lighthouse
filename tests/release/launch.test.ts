@@ -18,7 +18,7 @@ const repo = (over: [RegExp, Answer][] = []): [RegExp, Answer][] => [
   ...over,
   [/symbolic-ref/, { stdout: 'origin/main\n' }],
   [/fetch --quiet origin main/, {}],
-  [/tag --merged origin\/main/, { stdout: 'v0.2.40\n' }],
+  [/for-each-ref --merged origin\/main/, { stdout: 'v0.2.40 100\n' }],
   [/log --first-parent/, { stdout: record('a1', 'fix: one (#2)') + record('b2', 'feat: two (#3)') }],
   [/branch --show-current/, { stdout: 'main\n' }],
   [/rev-list --count/, { stdout: '0\n' }],
