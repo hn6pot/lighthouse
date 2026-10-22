@@ -162,7 +162,7 @@ export type ReleaseEntry = { sha: string; number: number | null; title: string; 
 export type ReleaseTag = { tag: string; date: number; entries: ReleaseEntry[]; ago?: string }
 
 /** What a detached release left in `~/.lighthouse/releases/<owner>__<repo>.json`. */
-export type ReleaseRecord = { pid: number; startedAt: number; tagAtLaunch: string | null; expected: string; log: string }
+export type ReleaseRecord = { pid: number; startedAt: number; tagAtLaunch: string | null; expected: string; log: string; code: string }
 
 /** Where a repo's last release stands. `warning`: a new tag, but the command failed after it. */
 export type ReleaseRun =

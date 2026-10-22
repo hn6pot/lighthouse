@@ -5,7 +5,7 @@ import { baseBranch, treeState } from '../repos/git'
 import { DATA_DIR } from '../sessions/registry'
 import { fetchBase, releaseRules } from './collect'
 import { latestTag, versionTags, waiting } from './read'
-import { readRun, runFiles, startScript } from './run'
+import { codeFile, readRun, runFiles, startScript } from './run'
 import { nextVersion } from './version'
 
 /**
@@ -22,11 +22,37 @@ const DETACH = [
 
 type Launch = { ok: true; version: string } | { ok: false; reason: string }
 
+/** A claim older than this is a press that died before writing its record (fetch and pull stay well under it). */
+const CLAIM_STALE_MS = 5 * 60_000
+
+/** Takes the claim atomically (mkdir); one left by a dead press is taken over. False: another press is launching. */
+async function claim(host: Host, path: string): Promise<boolean> {
+  if ((await host.run(['mkdir', path])).exitCode === 0) return true
+  const st = await host.run(['stat', '-f', '%m', path])
+  const stale = st.exitCode === 0 && /^\d+$/.test(st.stdout.trim()) && (await host.now()) - Number(st.stdout.trim()) * 1000 > CLAIM_STALE_MS
+  if (!stale) return false
+  await host.run(['rm', '-rf', path])
+  return (await host.run(['mkdir', path])).exitCode === 0
+}
+
 /** `shown` is the version the button showed: if it changed since, nothing is launched. */
 export async function launchRelease(host: Host, ctx: Context, slug: string, shown: string): Promise<Launch> {
   const { t } = ctx
   const rule = releaseRules(host, ctx).find(r => r.slug === slug)
   if (!rule) return { ok: false, reason: t.releasePane.nothing }
+  const files = runFiles(host.home, slug)
+  await host.run(['mkdir', '-p', `${host.home}/${DATA_DIR}/releases`, `${host.home}/${DATA_DIR}/logs`])
+  // From the first step to the record: two presses (here or in another session) never both launch.
+  if (!(await claim(host, files.claim))) return { ok: false, reason: t.releasePane.alreadyRunning }
+  try {
+    return await launchClaimed(host, ctx, slug, rule, shown)
+  } finally {
+    await host.run(['rm', '-rf', files.claim])
+  }
+}
+
+async function launchClaimed(host: Host, ctx: Context, slug: string, rule: { path: string; command: string }, shown: string): Promise<Launch> {
+  const { t } = ctx
   const { path, command } = rule
   const base = await baseBranch(host, path)
   if ((await readRun(host, slug, null)).kind === 'running') return { ok: false, reason: t.releasePane.alreadyRunning }
@@ -41,19 +67,23 @@ export async function launchRelease(host: Host, ctx: Context, slug: string, show
   const main = await treeState(host, path, base, t)
   if (main.branch !== base) return { ok: false, reason: t.reason.mainOnOtherBranch(main.branch, base) }
   if (main.uncommitted > 0) return { ok: false, reason: t.reason.mainDirty }
+  // Local commits would go out without being in the list, and could change the version.
+  const ahead = Number((await host.run(['git', '-C', path, 'rev-list', '--count', `origin/${base}..HEAD`])).stdout.trim()) || 0
+  if (ahead > 0) return { ok: false, reason: t.releasePane.unpushed(ahead) }
   const pull = await host.run(['git', '-C', path, 'pull', '--ff-only', '--quiet'], { timeoutMs: 120_000 })
   if (pull.exitCode !== 0) return { ok: false, reason: t.reason.pullFailed(pull.stderr.trim()) }
 
   const now = await host.now()
   const files = runFiles(host.home, slug)
+  const code = codeFile(host.home, slug, now)
   const log = `${host.home}/${DATA_DIR}/logs/${slug.replace('/', '__')}-release-${now}.log`
-  await host.run(['mkdir', '-p', `${host.home}/${DATA_DIR}/releases`, `${host.home}/${DATA_DIR}/logs`])
-  // The last run's exit code goes first: it must never be read as this run's.
-  await host.run(['rm', '-f', files.code])
-  await host.write(files.script, startScript(path, command, log, files.code))
+  await host.write(files.script, startScript(path, command, log, code))
   const started = await host.run(['/usr/bin/perl', '-MPOSIX', '-e', DETACH, '/bin/zsh', files.script])
   const pid = Number(started.stdout.trim())
   if (started.exitCode !== 0 || !Number.isInteger(pid) || pid <= 0) return { ok: false, reason: t.reason.launchFailed(started.stderr.trim()) }
-  await host.write(files.record, JSON.stringify({ pid, startedAt: now, tagAtLaunch: tag, expected: next, log }))
+  // Whole or not at all: another session never reads half a record (it would see no release).
+  const temporary = `${files.record}.tmp-${now}`
+  await host.write(temporary, JSON.stringify({ pid, startedAt: now, tagAtLaunch: tag, expected: next, log, code }))
+  await host.run(['mv', '-f', temporary, files.record])
   return { ok: true, version: next }
 }

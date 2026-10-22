@@ -4,10 +4,14 @@ import type { Host } from '../host'
 import type { ReleaseRecord, ReleaseRun } from '../model'
 import { DATA_DIR } from '../sessions/registry'
 
-export function runFiles(home: string, slug: string): { record: string; code: string; script: string } {
+/** `claim`: a folder made atomically by the press that launches, from its first step until the record is written. */
+export function runFiles(home: string, slug: string): { record: string; script: string; claim: string } {
   const base = `${home}/${DATA_DIR}/releases/${slug.replace('/', '__')}`
-  return { record: `${base}.json`, code: `${base}.code`, script: `${base}.sh` }
+  return { record: `${base}.json`, script: `${base}.sh`, claim: `${base}.claim` }
 }
+
+/** Each run writes its exit code to a file of its own: one run's code is never read as another's. */
+export const codeFile = (home: string, slug: string, startedAt: number) => `${home}/${DATA_DIR}/releases/${slug.replace('/', '__')}-${startedAt}.code`
 
 /** Single quotes for the shell: a `'` inside becomes `'\''`. */
 const quote = (text: string) => `'${text.replaceAll("'", "'\\''")}'`
@@ -26,21 +30,18 @@ function parseRecord(text: string | null): ReleaseRecord | null {
   if (text === null) return null
   try {
     const r = JSON.parse(text) as Partial<ReleaseRecord>
-    if (typeof r.pid !== 'number' || typeof r.startedAt !== 'number' || typeof r.expected !== 'string' || typeof r.log !== 'string') return null
-    return { pid: r.pid, startedAt: r.startedAt, tagAtLaunch: typeof r.tagAtLaunch === 'string' ? r.tagAtLaunch : null, expected: r.expected, log: r.log }
+    if (typeof r.pid !== 'number' || typeof r.startedAt !== 'number' || typeof r.expected !== 'string' || typeof r.log !== 'string' || typeof r.code !== 'string') return null
+    return { pid: r.pid, startedAt: r.startedAt, tagAtLaunch: typeof r.tagAtLaunch === 'string' ? r.tagAtLaunch : null, expected: r.expected, log: r.log, code: r.code }
   } catch {
     return null // written by another process, unreadable: as if there were none
   }
 }
 
-export const readRecord = async (host: Host, slug: string) => parseRecord(await host.read(runFiles(host.home, slug).record))
-
 /** Where the last release of `slug` stands; `currentTag` is the highest version tag now. */
 export async function readRun(host: Host, slug: string, currentTag: string | null): Promise<ReleaseRun> {
-  const files = runFiles(host.home, slug)
-  const record = parseRecord(await host.read(files.record))
+  const record = parseRecord(await host.read(runFiles(host.home, slug).record))
   if (record === null) return { kind: 'idle' }
-  const codeText = await host.read(files.code)
+  const codeText = await host.read(record.code)
   if (codeText === null && (await host.run(['kill', '-0', String(record.pid)])).exitCode === 0) {
     return { kind: 'running', startedAt: record.startedAt, expected: record.expected }
   }

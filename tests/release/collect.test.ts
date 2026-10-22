@@ -37,8 +37,8 @@ test('one repo per release rule, other kinds are ignored', async () => {
 
 test('notifies a done run, keyed by its start', async () => {
   const files = runFiles('/Users/me', 'acme/app')
-  const done = JSON.stringify({ pid: 7, startedAt: 900, tagAtLaunch: 'v0.2.39', expected: 'v0.2.40', log: '/l' })
-  const { host } = fakeHost(GIT, { [files.record]: done, [files.code]: '0\n' })
+  const done = JSON.stringify({ pid: 7, startedAt: 900, tagAtLaunch: 'v0.2.39', expected: 'v0.2.40', log: '/l', code: '/c' })
+  const { host } = fakeHost(GIT, { [files.record]: done, '/c': '0\n' })
   const n = notifier()
   await collectReleases(host, ctx(), n.notify)
   expect(n.sent).toEqual([['release:acme/app:900', t.notification.releaseOk('App', 'v0.2.40')]])

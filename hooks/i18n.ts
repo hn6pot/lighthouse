@@ -126,6 +126,7 @@ const fr = {
 
   releasePane: {
     alreadyRunning: 'Une release tourne déjà',
+    unpushed: (n: number) => `le dossier principal a ${n} commit${n > 1 ? 's' : ''} pas poussé${n > 1 ? 's' : ''} : ils sortiraient sans être dans la liste`,
     versionChanged: (version: string) => `La version a changé : ${version}. Rappuie pour la sortir.`,
     nothing: 'Rien à sortir',
     launched: (version: string) => `Release ${version} lancée`,
@@ -363,6 +364,7 @@ const en: Texts = {
 
   releasePane: {
     alreadyRunning: 'A release is already running',
+    unpushed: n => `the main folder has ${n} commit${n > 1 ? 's' : ''} not pushed: they would ship without being in the list`,
     versionChanged: version => `The version changed: ${version}. Press again to ship it.`,
     nothing: 'Nothing to release',
     launched: version => `Release ${version} started`,

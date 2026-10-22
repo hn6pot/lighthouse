@@ -4,12 +4,13 @@ import { fakeHost } from '../helpers/fake-host'
 
 const files = runFiles('/Users/me', 'acme/app')
 const LOG = '/Users/me/.lighthouse/logs/acme__app-release-1000.log'
-const record = JSON.stringify({ pid: 42, startedAt: 1000, tagAtLaunch: 'v0.2.40', expected: 'v0.3.0', log: LOG })
+const CODE = '/Users/me/.lighthouse/releases/acme__app-1000.code'
+const record = JSON.stringify({ pid: 42, startedAt: 1000, tagAtLaunch: 'v0.2.40', expected: 'v0.3.0', log: LOG, code: CODE })
 
 test('run files live in ~/.lighthouse/releases, one set per repo', () => {
   expect(files).toEqual({
     record: '/Users/me/.lighthouse/releases/acme__app.json',
-    code: '/Users/me/.lighthouse/releases/acme__app.code',
+    claim: '/Users/me/.lighthouse/releases/acme__app.claim',
     script: '/Users/me/.lighthouse/releases/acme__app.sh',
   })
 })
@@ -29,17 +30,17 @@ test('died when pid gone without code', async () => {
 })
 
 test('ok when a new tag and code 0', async () => {
-  const { host } = fakeHost([], { [files.record]: record, [files.code]: '0\n', [LOG]: '✓ done\n' })
+  const { host } = fakeHost([], { [files.record]: record, [CODE]: '0\n', [LOG]: '✓ done\n' })
   expect(await readRun(host, 'acme/app', 'v0.3.0')).toMatchObject({ kind: 'done', outcome: 'ok', version: 'v0.3.0' })
 })
 
 test('warning when a new tag and code ≠ 0, with the last non-empty line', async () => {
-  const { host } = fakeHost([], { [files.record]: record, [files.code]: '1\n', [LOG]: '✓ tag\n✗ check failed\n\n' })
+  const { host } = fakeHost([], { [files.record]: record, [CODE]: '1\n', [LOG]: '✓ tag\n✗ check failed\n\n' })
   expect(await readRun(host, 'acme/app', 'v0.3.0')).toMatchObject({ kind: 'done', outcome: 'warning', version: 'v0.3.0', lastLine: '✗ check failed' })
 })
 
 test('failed when no new tag', async () => {
-  const { host } = fakeHost([], { [files.record]: record, [files.code]: '0\n' })
+  const { host } = fakeHost([], { [files.record]: record, [CODE]: '0\n' })
   expect(await readRun(host, 'acme/app', 'v0.2.40')).toMatchObject({ kind: 'done', outcome: 'failed', version: null })
 })
 
