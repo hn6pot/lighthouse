@@ -81,6 +81,8 @@ type State = {
   pendingMerge: string | null
   /** The pane: opened by the mod, or closed by the person (never reopened on its own then). */
   pane: 'open' | 'closed' | null
+  /** The Releases pane, the same way: opened once on its own, never again once the person closed it. */
+  releasePane: 'open' | 'closed' | null
   /** Asks for a tick soon (grouped), or right after the running one. */
   rerun: () => void
   /** Runs a tick now (the Refresh button), or right after the one running. */
@@ -341,7 +343,7 @@ export const register: Register = (on, options) => {
   const t = texts(langOf(options.language))
   const state: State = {
     t, host: null, ctx: null, entrusted: new Map(), folders: new Set(), links: new Map(), sending: new Set(),
-    trees: [], pendingMerge: null, pane: null, rerun: () => undefined, tickNow: async () => undefined, activities: new Map(), agents: new Map(), forceGh: false, forceReviews: false, intent: false, drawn: '', celebrated: new Set(), label: null, releaseRefusals: new Map(), releases: [],
+    trees: [], pendingMerge: null, pane: null, releasePane: null, rerun: () => undefined, tickNow: async () => undefined, activities: new Map(), agents: new Map(), forceGh: false, forceReviews: false, intent: false, drawn: '', celebrated: new Set(), label: null, releaseRefusals: new Map(), releases: [],
   }
   let running = false
   let replay = false
@@ -441,6 +443,12 @@ export const register: Register = (on, options) => {
         if (state.trees.length > 0 && state.pane === null) {
           state.pane = 'open'
           await $.ui.open({ id: PANE, title: t.paneTitle }).catch(() => undefined) // without a pane, the band stays
+        }
+        // The Releases pane, once, in a session on a release repo that has something to ship.
+        const shipping = state.releases.some(r => r.waiting.length > 0 && state.trees.some(tr => tr.root === r.path))
+        if (shipping && state.releasePane === null) {
+          state.releasePane = 'open'
+          await $.ui.open({ id: 'release', title: t.releasePaneTitle }).catch(() => undefined)
         }
       } finally {
         running = false
@@ -548,6 +556,7 @@ export const register: Register = (on, options) => {
 
   on('ui.close', async ($, e, next) => {
     if (e.id === PANE && e.origin.kind === 'person') state.pane = 'closed'
+    if (e.id === 'release' && e.origin.kind === 'person') state.releasePane = 'closed'
     return next(e)
   })
 
@@ -559,6 +568,7 @@ export const register: Register = (on, options) => {
 
   // Literal: the validator refuses an imported constant; same value as RELEASE_PANE (ui/release-pane.tsx).
   on('command.run', { command: 'release' }, async $ => {
+    state.releasePane = 'open'
     await $.ui.open({ id: 'release', title: t.releasePaneTitle, focus: true })
     return {}
   })

@@ -45,7 +45,7 @@ With the [intent](https://github.com/hn6pot/intent) mod enabled, each of them, a
 
 ### Releases
 
-A repo with a `release` rule (see Configuration) does not deploy after each merge. Its merged PRs wait, and its worktree and branch are cleaned at once. The summary line counts them ("4 to release"), and **`/release`** opens the **Releases** pane, one frame per release repo:
+A repo with a `release` rule (see Configuration) does not deploy after each merge. Its merged PRs wait, and its worktree and branch are cleaned at once. The summary line counts them ("4 to release"). The **Releases** pane opens on its own, once, in a session that works in a release repo with something to ship (never again once you close it; **`/release`** reopens it, from any session). One frame per release repo:
 
 - its current version and how long ago it came out;
 - what waits since that version, from the base's commits: **Fix** (`fix:` titles), **Features** (`feat:`), and the rest under **Others**, folded;
