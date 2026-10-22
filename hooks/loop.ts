@@ -14,9 +14,10 @@ import { desktopIndex, type DesktopSession } from './sessions/desktop'
 import { liveSessions } from './sessions/registry'
 import { commitRuns, myLogin, myOpenPrs, prDetail, summarizePr } from './github/prs'
 import { reviewRequests } from './github/reviews'
+import { collectReleases } from './release/collect'
 import type { Host } from './host'
 import type { Texts } from './i18n'
-import type { Owner, PrSummary, Repo, ReviewRequest, TreeState, Tracked } from './model'
+import type { Owner, PrSummary, ReleaseRepo, Repo, ReviewRequest, TreeState, Tracked } from './model'
 import { baseBranch, localBranches, originSlug, refresh, roots, treeState, isAncestor, lastRelease } from './repos/git'
 import { acquireLock, releaseLock } from './sessions/lock'
 import { sessionAlive } from './sessions/registry'
@@ -47,7 +48,7 @@ export type Context = {
 }
 export type Actions = {
   notify: (key: string, text: string) => Promise<void>
-  publish: (trees: TreeState[], events: Tracked[], reviews: ReviewRequest[]) => Promise<void>
+  publish: (trees: TreeState[], events: Tracked[], reviews: ReviewRequest[], releases: ReleaseRepo[]) => Promise<void>
 }
 
 const FETCH_MS = 10 * 60_000
@@ -381,7 +382,9 @@ export async function tick(host: Host, ctx: Context, actions: Actions): Promise<
     // gh unavailable: the last list stays
   }
   const reviews = (ctx.reviews ?? []).map(r => ({ ...r, facts: reviewFacts(r, now, ctx.t) }))
-  await actions.publish(shown, ownedEvents, reviews)
+  // The repos released on demand, from the config: shown in every session, whatever it touches.
+  const releases = await collectReleases(host, ctx, actions.notify)
+  await actions.publish(shown, ownedEvents, reviews, releases)
 }
 
 export async function cleanNow(host: Host, ctx: Context, key: string): Promise<string> {

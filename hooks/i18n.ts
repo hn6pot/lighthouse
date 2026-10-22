@@ -115,6 +115,17 @@ const fr = {
   notification: {
     deployDoubt: (number: number, slug: string, why: string | undefined) => `#${number} ${slug} fusionnée : déploiement à confirmer (${why})`,
     deployFailed: (number: number, slug: string) => `#${number} ${slug} : déploiement en échec`,
+    releaseOk: (name: string, version: string) => `${name} ${version} installée`,
+    releaseWarning: (name: string, version: string, line: string) => `${name} ${version} installée, mais la vérification d'après a échoué : ${line}`,
+    releaseFailed: (name: string, line: string) => `Release ${name} échouée : ${line}`,
+    releaseDied: (name: string) => `La release ${name} s'est arrêtée sans finir`,
+  },
+
+  releasePane: {
+    alreadyRunning: 'Une release tourne déjà',
+    versionChanged: (version: string) => `La version a changé : ${version}. Rappuie pour la sortir.`,
+    nothing: 'Rien à sortir',
+    launched: (version: string) => `Release ${version} lancée`,
   },
 
   toast: {
@@ -327,6 +338,17 @@ const en: Texts = {
   notification: {
     deployDoubt: (number, slug, why) => `#${number} ${slug} merged: deploy to confirm (${why})`,
     deployFailed: (number, slug) => `#${number} ${slug}: deploy failed`,
+    releaseOk: (name, version) => `${name} ${version} installed`,
+    releaseWarning: (name, version, line) => `${name} ${version} installed, but the check after it failed: ${line}`,
+    releaseFailed: (name, line) => `${name} release failed: ${line}`,
+    releaseDied: name => `The ${name} release stopped before finishing`,
+  },
+
+  releasePane: {
+    alreadyRunning: 'A release is already running',
+    versionChanged: version => `The version changed: ${version}. Press again to ship it.`,
+    nothing: 'Nothing to release',
+    launched: version => `Release ${version} started`,
   },
 
   toast: {

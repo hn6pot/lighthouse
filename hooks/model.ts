@@ -169,3 +169,17 @@ export type ReleaseRun =
   | { kind: 'idle' }
   | { kind: 'running'; startedAt: number; expected: string }
   | { kind: 'done'; startedAt: number; outcome: 'ok' | 'warning' | 'failed' | 'died'; version: string | null; lastLine: string; log: string }
+
+/** A repo with a release rule, as the Releases pane shows it. `refusal`: why the last press launched nothing. */
+export type ReleaseRepo = {
+  slug: string
+  name: string
+  path: string
+  base: string
+  tag: string | null
+  waiting: ReleaseEntry[]
+  next: string
+  history: ReleaseTag[]
+  run: ReleaseRun
+  refusal?: string
+}
