@@ -141,7 +141,7 @@ Si aucune commande ne correspond, la PR passe en déploiement à confirmer et le
 
 ### `ghConfigDirs` : un compte gh par propriétaire
 
-Par défaut, `gh` tourne avec ton compte actif. Si certains dépôts demandent un autre compte, associe leur propriétaire au dossier de config gh de ce compte. Chaque appel `gh` pour ces dépôts tourne alors avec `GH_CONFIG_DIR` réglé sur ce dossier, sans toucher à ton compte actif. `~` désigne ton dossier personnel. Pour créer un tel dossier : `GH_CONFIG_DIR=~/.config/gh-acme gh auth login`.
+Par défaut, `gh` tourne avec ton compte actif. Si certains dépôts demandent un autre compte, associe leur propriétaire au dossier de config gh de ce compte. Chaque appel `gh` pour ces dépôts tourne alors avec `GH_CONFIG_DIR` réglé sur ce dossier, sans toucher à ton compte actif. Les agents lancés depuis le panneau (corriger la CI, traiter les commentaires, mettre à jour la branche, ouvrir la PR, faire le ménage) reçoivent la consigne de lancer leurs commandes `gh` de la même façon. `~` désigne ton dossier personnel. Pour créer un tel dossier : `GH_CONFIG_DIR=~/.config/gh-acme gh auth login`.
 
 ### Langue
 

@@ -158,6 +158,10 @@ const during = async <T>($: EngineInterface, state: State, activity: Activity, a
   }
 }
 
+/** The GH_CONFIG_DIR of the repo's gh account, when the config gives it one. */
+const ghConfigDir = (state: State, a: TreeState) =>
+  a.slug === null || !state.host || !state.ctx ? undefined : ghEnv(a.slug, state.host.home, state.ctx.config.ghConfigDirs)?.GH_CONFIG_DIR
+
 /** Hands a task to a background agent, in the branch's folder; its line stays until its turn ends. */
 async function delegate($: EngineInterface, state: State, target: Target, description: string, instruction: string, cwd: string) {
   const id = `agent:${crypto.randomUUID()}`
@@ -218,8 +222,7 @@ const buttons = ($: EngineInterface, state: State): Buttons => {
       // A new Desktop session in the repo, the instruction already typed: the person sends it and follows it there.
       const a = state.trees.find(x => x.root === root)
       if (!state.host || !state.ctx || !a) return
-      const ghConfigDir = a.slug === null ? undefined : ghEnv(a.slug, state.host.home, state.ctx.config.ghConfigDirs)?.GH_CONFIG_DIR
-      const link = `claude://code/new?${new URLSearchParams({ q: tidyPrompt(a, t, ghConfigDir), folder: root }).toString()}`
+      const link = `claude://code/new?${new URLSearchParams({ q: tidyPrompt(a, t, ghConfigDir(state, a)), folder: root }).toString()}`
       return state.host.run(['open', link]).then(() => undefined, fail)
     },
     openSession: desktopId => {
@@ -271,7 +274,7 @@ const buttons = ($: EngineInterface, state: State): Buttons => {
         const found = findPr(state, root, number)
         if (!found) return
         const { a, p } = found
-        await delegate($, state, { root, number, text: t.activity.action[action] }, t.task.action(action, p.number), actionPrompt(action, a, p, t), p.path ?? root)
+        await delegate($, state, { root, number, text: t.activity.action[action] }, t.task.action(action, p.number), actionPrompt(action, a, p, t, ghConfigDir(state, a)), p.path ?? root)
       })().catch(fail),
     push: (root, branch, to) =>
       (async () => {
@@ -299,7 +302,7 @@ const buttons = ($: EngineInterface, state: State): Buttons => {
         const a = state.trees.find(x => x.root === root)
         const b = a?.branches.find(x => x.name === branch)
         if (!a || !b) return
-        await delegate($, state, { root, branch, text: t.activity.opensThePr }, t.task.openPr(branch), branchPrompt(a, b, t), b.path ?? root)
+        await delegate($, state, { root, branch, text: t.activity.opensThePr }, t.task.openPr(branch), branchPrompt(a, b, t, ghConfigDir(state, a)), b.path ?? root)
       })().catch(fail),
     deploy: key =>
       (async () => {

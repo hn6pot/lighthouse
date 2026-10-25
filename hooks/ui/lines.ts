@@ -77,13 +77,19 @@ export function repoColor(a: TreeState, t: Texts): Color {
   return a.prs.length > 0 ? 'success' : 'subtle'
 }
 
-export function actionPrompt(action: AskAction, a: TreeState, p: PrSummary, t: Texts): string {
+/** What a pane agent receives for a PR. `ghConfigDir`: the repo's gh account, if not the default one. */
+export function actionPrompt(action: AskAction, a: TreeState, p: PrSummary, t: Texts, ghConfigDir: string | undefined): string {
+  const gh = ghCommand(ghConfigDir)
+  return withAccount(prInstruction(action, a, p, t, gh), gh, t)
+}
+
+function prInstruction(action: AskAction, a: TreeState, p: PrSummary, t: Texts, gh: string): string {
   const repo = a.slug ?? a.name
   switch (action) {
     case 'fix-ci':
       return t.prompt.fixCi({ number: p.number, repo, branch: p.branch, checks: p.failedChecks.join(', ') || '?' })
     case 'comments':
-      return t.prompt.comments({ number: p.number, repo, branch: p.branch })
+      return t.prompt.comments({ number: p.number, repo, branch: p.branch, gh })
     case 'update':
       return t.prompt.update({ number: p.number, repo, branch: p.branch, base: a.base, conflict: p.conflict })
   }
@@ -113,19 +119,28 @@ export function branchActions(a: TreeState, b: LocalBranch): BranchAction[] {
   return actions
 }
 
-export function branchPrompt(a: TreeState, b: LocalBranch, t: Texts): string {
+export function branchPrompt(a: TreeState, b: LocalBranch, t: Texts, ghConfigDir: string | undefined): string {
   // Stacked on a PR: its own PR goes on top of that PR's branch.
   const under = b.stackedOn === undefined ? undefined : a.prs.find(p => p.number === b.stackedOn)
-  return t.prompt.openPr({ branch: b.name, repo: a.slug ?? a.name, base: under?.branch ?? a.base, path: b.path, ...(under ? { stackedOn: under.number } : {}) })
+  const instruction = t.prompt.openPr({ branch: b.name, repo: a.slug ?? a.name, base: under?.branch ?? a.base, path: b.path, ...(under ? { stackedOn: under.number } : {}) })
+  return withAccount(instruction, ghCommand(ghConfigDir), t)
 }
 
 /** What the tidy-up agent receives: what to remove, and what never to touch. `ghConfigDir`: the repo's gh account, if not the default one. */
 export function tidyPrompt(a: TreeState, t: Texts, ghConfigDir: string | undefined): string {
   const repo = a.slug ?? a.name
-  const dir = ghConfigDir === undefined || /^[\w./~-]+$/.test(ghConfigDir) ? ghConfigDir : `'${ghConfigDir.replaceAll("'", `'\\''`)}'`
-  const gh = dir === undefined ? 'gh' : `GH_CONFIG_DIR=${dir} gh`
-  return t.prompt.tidy({ repo, root: a.root, base: a.base, gh })
+  return t.prompt.tidy({ repo, root: a.root, base: a.base, gh: ghCommand(ghConfigDir) })
 }
+
+/** The gh command an agent types for a repo: with its gh account's folder when it is not the active account. */
+function ghCommand(ghConfigDir: string | undefined): string {
+  if (ghConfigDir === undefined) return 'gh'
+  const dir = /^[\w./~-]+$/.test(ghConfigDir) ? ghConfigDir : `'${ghConfigDir.replaceAll("'", `'\\''`)}'`
+  return `GH_CONFIG_DIR=${dir} gh`
+}
+
+/** The active gh account cannot see every repo: the agent is told which command to use for this one. */
+const withAccount = (instruction: string, gh: string, t: Texts) => (gh === 'gh' ? instruction : instruction + t.prompt.ghAccount(gh))
 
 /** A merged PR: merged into its base, then where its deploy and cleanup stand. */
 export function trackedChips(s: Tracked, t: Texts): Chip[] {

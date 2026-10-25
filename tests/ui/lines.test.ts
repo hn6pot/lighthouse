@@ -58,18 +58,27 @@ test('repo color: the worst of its PRs', () => {
 })
 
 test('instructions handed to Claude', () => {
-  expect(actionPrompt('fix-ci', A, { ...P, ci: 'failing', failedChecks: ['lint'] }, t)).toBe(
+  expect(actionPrompt('fix-ci', A, { ...P, ci: 'failing', failedChecks: ['lint'] }, t, undefined)).toBe(
     'La CI de la PR #98 (w/api, branche feat/x) est rouge : lint. Trouve pourquoi et corrige-la dans le worktree de cette branche, puis pousse.',
   )
-  expect(actionPrompt('comments', A, P, t)).toBe(
+  expect(actionPrompt('comments', A, P, t, undefined)).toBe(
     'Des changements sont demandés sur la PR #98 (w/api, branche feat/x). Lis les commentaires de revue (gh pr view 98 -R w/api --comments), traite-les dans le worktree de cette branche, puis pousse.',
   )
-  expect(actionPrompt('update', A, { ...P, conflict: true }, t)).toBe(
+  expect(actionPrompt('update', A, { ...P, conflict: true }, t, undefined)).toBe(
     'Mets à jour la branche feat/x de la PR #98 (w/api) avec origin/production et résous les conflits, dans le worktree de cette branche, puis pousse.',
   )
-  expect(actionPrompt('update', A, { ...P, behind: true }, t)).toBe(
+  expect(actionPrompt('update', A, { ...P, behind: true }, t, undefined)).toBe(
     'Mets à jour la branche feat/x de la PR #98 (w/api) avec origin/production, dans le worktree de cette branche, puis pousse.',
   )
+})
+
+test('a repo with its own gh account: every agent instruction names it', () => {
+  const account = ' : lance chaque commande gh avec GH_CONFIG_DIR=/Users/me/.config/gh-acme gh (le compte actif reste tel quel).'
+  for (const action of ['fix-ci', 'comments', 'update'] as const) expect(actionPrompt(action, A, P, t, '/Users/me/.config/gh-acme')).toContain(account)
+  expect(actionPrompt('comments', A, P, t, '/Users/me/.config/gh-acme')).toContain('(GH_CONFIG_DIR=/Users/me/.config/gh-acme gh pr view 98 -R w/api --comments)')
+  expect(branchPrompt(A, B, t, '/Users/me/.config/gh-acme')).toContain(account)
+  expect(actionPrompt('fix-ci', A, P, texts('en'), "/Users/me/gh dirs/it's")).toContain(`run every gh command as GH_CONFIG_DIR='/Users/me/gh dirs/it'\\''s' gh`)
+  expect(actionPrompt('fix-ci', A, P, t, undefined)).not.toContain('GH_CONFIG_DIR')
 })
 
 const B: LocalBranch = { name: 'feat/y', path: '/r/.worktrees/y', remote: 'none', unpushed: 0, ahead: 3 }
@@ -94,7 +103,7 @@ test('branches without PR: chips, actions, instruction', () => {
   expect(branchActions(A, { ...B, remote: 'deleted' })).toEqual([])
   expect(branchActions(A, { ...B, name: 'production', remote: 'ok', unpushed: 2 })).toEqual(['push']) // the base: no PR
   expect(repoColor({ ...A, branches: [B] }, t)).toBe('warning')
-  expect(branchPrompt(A, B, t)).toBe(
+  expect(branchPrompt(A, B, t, undefined)).toBe(
     'Ouvre une PR pour la branche feat/y de w/api (base production), depuis son worktree /r/.worktrees/y : pousse-la si besoin, suis le modèle de PR et les conventions du dépôt, puis donne-moi le lien.',
   )
 })

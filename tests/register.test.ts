@@ -169,6 +169,7 @@ test('pane: PRs in color and their actions, on the terminal and the Desktop', { 
   await ui.press({ key: 'ci-acme/web#4' })
   expect(agents[0]?.prompt).toContain('La CI de la PR #4 (acme/web, branche feat/x) est rouge : lint.')
   expect(agents[0]?.prompt).toContain('Ne fusionne rien et ne déploie rien.')
+  expect(agents[0]?.prompt).toContain('lance chaque commande gh avec GH_CONFIG_DIR=/Users/me/.config/gh-acme gh')
   expect(agents[0]?.description).toBe('corrige la CI #4')
   expect(agents[0]?.cwd).toBe('/w/web') // no known worktree for feat/x here: the repo's folder
   expect(await ui.find({ type: 'Text', text: '⟳ Claude corrige la CI…' })).toBeDefined()
@@ -205,6 +206,7 @@ test('pane: a branch never pushed, Push and Open a PR', { options: { language: '
   expect(lines).toContain('git -C /w/web/.worktrees/y push -u origin feat/y')
   await ui.press({ key: 'openpr-/w/web@feat/y' })
   expect(agents[0]?.prompt).toContain('Ouvre une PR pour la branche feat/y de acme/web (base main)')
+  expect(agents[0]?.prompt).toContain('lance chaque commande gh avec GH_CONFIG_DIR=/Users/me/.config/gh-acme gh')
   expect(agents[0]?.cwd).toBe('/w/web/.worktrees/y')
   expect(await ui.find({ type: 'Text', text: '⟳ Claude ouvre la PR…' })).toBeDefined()
 })

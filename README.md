@@ -140,7 +140,7 @@ If no command matches, the PR goes into doubt and the band asks you. `always_dou
 
 ### `ghConfigDirs`: one gh account per owner
 
-By default `gh` runs with your active account. If some repos need another account, map their owner to that account's gh config folder. Every `gh` call for those repos then runs with `GH_CONFIG_DIR` set to it, and your active account is left alone. `~` stands for your home folder. To create such a folder: `GH_CONFIG_DIR=~/.config/gh-acme gh auth login`.
+By default `gh` runs with your active account. If some repos need another account, map their owner to that account's gh config folder. Every `gh` call for those repos then runs with `GH_CONFIG_DIR` set to it, and your active account is left alone. The agents launched from the pane (fix the CI, address the comments, update the branch, open the PR, tidy up) are told to run their `gh` commands the same way. `~` stands for your home folder. To create such a folder: `GH_CONFIG_DIR=~/.config/gh-acme gh auth login`.
 
 ### Language
 
