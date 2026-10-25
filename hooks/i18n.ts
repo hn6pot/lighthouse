@@ -7,7 +7,7 @@ export const langOf = (value: unknown): Lang => (value === 'fr' ? 'fr' : 'en')
 
 type ActionText = { 'fix-ci': string; comments: string; update: string }
 type FixCiPrompt = { number: number; repo: string; branch: string; checks: string }
-type CommentsPrompt = { number: number; repo: string; branch: string }
+type CommentsPrompt = { number: number; repo: string; branch: string; gh: string }
 type UpdatePrompt = { number: number; repo: string; branch: string; base: string; conflict: boolean }
 type OpenPrPrompt = { branch: string; repo: string; base: string; path: string | null; stackedOn?: number }
 type TidyPrompt = { repo: string; root: string; base: string; gh: string }
@@ -225,10 +225,12 @@ const fr = {
       '\n\nTu es lancé en arrière-plan par le mod lighthouse, depuis le panneau de la personne : elle ne suit pas ton travail pas à pas. ' +
       'Ne fusionne rien et ne déploie rien. Si la branche n’a pas de worktree, crée-en un dans .worktrees/ plutôt que de changer la branche du dossier principal. ' +
       'Termine par un résumé de trois lignes au plus : ce que tu as fait, ce qui reste à faire.',
+    /** Added to an agent's instruction when the repo has its own gh account. */
+    ghAccount: (gh: string) => `\n\nCe dépôt passe par un autre compte gh que le compte actif, qui ne le voit pas : lance chaque commande gh avec ${gh} (le compte actif reste tel quel).`,
     fixCi: (p: FixCiPrompt) =>
       `La CI de la PR #${p.number} (${p.repo}, branche ${p.branch}) est rouge : ${p.checks}. Trouve pourquoi et corrige-la dans le worktree de cette branche, puis pousse.`,
     comments: (p: CommentsPrompt) =>
-      `Des changements sont demandés sur la PR #${p.number} (${p.repo}, branche ${p.branch}). Lis les commentaires de revue (gh pr view ${p.number} -R ${p.repo} --comments), traite-les dans le worktree de cette branche, puis pousse.`,
+      `Des changements sont demandés sur la PR #${p.number} (${p.repo}, branche ${p.branch}). Lis les commentaires de revue (${p.gh} pr view ${p.number} -R ${p.repo} --comments), traite-les dans le worktree de cette branche, puis pousse.`,
     update: (p: UpdatePrompt) =>
       `Mets à jour la branche ${p.branch} de la PR #${p.number} (${p.repo}) avec origin/${p.base}${p.conflict ? ' et résous les conflits' : ''}, dans le worktree de cette branche, puis pousse.`,
     tidy: (p: TidyPrompt) =>
@@ -458,10 +460,11 @@ const en: Texts = {
       '\n\nYou were launched in the background by the lighthouse mod, from the person’s pane: they are not following your work step by step. ' +
       'Do not merge anything and do not deploy anything. If the branch has no worktree, create one in .worktrees/ rather than switching the branch of the main folder. ' +
       'End with a summary of three lines at most: what you did, what is left to do.',
+    ghAccount: gh => `\n\nThis repo goes through another gh account than the active one, which cannot see it: run every gh command as ${gh} (the active account stays as it is).`,
     fixCi: p =>
       `The CI of PR #${p.number} (${p.repo}, branch ${p.branch}) is red: ${p.checks}. Find out why and fix it in this branch’s worktree, then push.`,
     comments: p =>
-      `Changes were requested on PR #${p.number} (${p.repo}, branch ${p.branch}). Read the review comments (gh pr view ${p.number} -R ${p.repo} --comments), address them in this branch’s worktree, then push.`,
+      `Changes were requested on PR #${p.number} (${p.repo}, branch ${p.branch}). Read the review comments (${p.gh} pr view ${p.number} -R ${p.repo} --comments), address them in this branch’s worktree, then push.`,
     update: p =>
       `Update branch ${p.branch} of PR #${p.number} (${p.repo}) with origin/${p.base}${p.conflict ? ' and resolve the conflicts' : ''}, in this branch’s worktree, then push.`,
     tidy: p =>
