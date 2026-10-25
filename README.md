@@ -159,7 +159,7 @@ For a plugin loaded with `--plugin-dir`, the key is `lighthouse@inline`. Changin
 - **A deploy you run in the session.** Claude may run a deploy command itself in a repo with a merged PR: `make deploy`, `make …-push`, `helm upgrade`, `kubectl apply`, `gh workflow run`, `terraform apply`, `npm run deploy`, `./…deploy….sh`, or the command the mod proposed. That PR is then marked as handled by this session for 30 minutes. There is no "Deploy" button and no doubt notification, and its card says it is deploying here (or in another session). If the command succeeds, the PR is deployed and the cleanup follows. A dispatched workflow is followed on GitHub instead.
 - **Cleanup.** The mod runs `git worktree remove` then `git branch -D`, only when all of these hold:
   - the PR is merged;
-  - the worktree and the branch have no commit after the PR's head;
+  - the worktree and the branch hold nothing GitHub never had: they are at the PR's head, behind it (sub-PRs merged into the branch there), or on a tip that was pushed before the branch was rebased there;
   - there is no uncommitted change;
   - no other session works there.
 

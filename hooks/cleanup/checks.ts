@@ -11,12 +11,24 @@ export type Verdict = { ok: true; tree: string | null } | { ok: false; reason: s
 const no = (reason: string): Verdict => ({ ok: false, reason })
 const inside = (path: string, tree: string) => path === tree || path.startsWith(tree + '/')
 
-// No tree left: only the local branch will be deleted with -D, so it must carry nothing beyond the PR.
+/**
+ * Has this local tip ever been on GitHub? At the PR's head, behind it (sub-PRs merged into the branch there),
+ * or once the tip of `origin/<branch>` before a rebase rewrote it there. Anything else may exist only here.
+ */
+async function onGitHub(host: Host, s: Tracked, tip: string | null): Promise<boolean> {
+  if (tip === null || !s.prHead) return false
+  if (tip === s.prHead) return true
+  const behind = await host.run(['git', '-C', s.root, 'merge-base', '--is-ancestor', tip, s.prHead])
+  if (behind.exitCode === 0) return true
+  const reflog = await host.run(['git', '-C', s.root, 'reflog', 'show', '--format=%H', `refs/remotes/origin/${s.branch}`])
+  return reflog.exitCode === 0 && reflog.stdout.split('\n').some(l => l.trim() === tip)
+}
+
+// No tree left: only the local branch will be deleted with -D, so it must carry nothing GitHub never had.
 async function checkLoneBranch(host: Host, s: Tracked, t: Texts): Promise<Verdict> {
   const r = await host.run(['git', '-C', s.root, 'rev-parse', '--verify', '--quiet', `refs/heads/${s.branch}`])
   if (r.exitCode !== 0) return { ok: true, tree: null } // branch gone: nothing to delete
-  const tip = r.stdout.trim()
-  if (tip !== s.prHead) return no(t.reason.commitsAfterPrOn(s.branch))
+  if (!(await onGitHub(host, s, r.stdout.trim()))) return no(t.reason.unpushedCommitsOn(s.branch))
   return { ok: true, tree: null }
 }
 
@@ -48,7 +60,7 @@ export async function checkCleanup(host: Host, s: Tracked, ctx: { id: string; cw
   if (modified > 0) return no(t.reason.uncommittedIn(modified, tree.path))
 
   const current = await head(host, tree.path)
-  if (current !== s.prHead) return no(t.reason.commitsAfterPr(current?.slice(0, 7), s.prHead?.slice(0, 7)))
+  if (!(await onGitHub(host, s, current))) return no(t.reason.unpushedCommits(current?.slice(0, 7), s.prHead?.slice(0, 7)))
 
   return { ok: true, tree: tree.path }
 }

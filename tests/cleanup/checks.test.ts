@@ -48,9 +48,26 @@ test('uncommitted changes: doubt', async () => {
   expect(v).toEqual({ ok: false, reason: '1 fichier(s) non commité(s) dans /r/.worktrees/x' })
 })
 
-test('commit added after the PR: doubt', async () => {
+test('commit never pushed to GitHub: doubt', async () => {
   const v = await checkCleanup(host([[/rev-parse HEAD/, { stdout: 'other\n' }]]), S, CTX, t)
-  expect(v).toMatchObject({ ok: false, reason: expect.stringContaining('après la PR') })
+  expect(v).toMatchObject({ ok: false, reason: expect.stringContaining('jamais poussés') })
+})
+
+test('tree behind the PR (sub-PRs merged into it on GitHub): ok, with the tree', async () => {
+  const v = await checkCleanup(host([[/rev-parse HEAD/, { stdout: 'old\n' }], [/merge-base --is-ancestor old tip/, {}]]), S, CTX, t)
+  expect(v).toEqual({ ok: true, tree: '/r/.worktrees/x' })
+})
+
+test('tree on a tip that was pushed, then rewritten on GitHub (rebase): ok, with the tree', async () => {
+  const reflog: [RegExp, Answer] = [/reflog show --format=%H refs\/remotes\/origin\/feat\/x/, { stdout: 'tip\nmid\nold\nfirst\n' }]
+  const v = await checkCleanup(host([[/rev-parse HEAD/, { stdout: 'old\n' }], reflog]), S, CTX, t)
+  expect(v).toEqual({ ok: true, tree: '/r/.worktrees/x' })
+})
+
+test('tree on a commit absent from the remote reflog: doubt', async () => {
+  const reflog: [RegExp, Answer] = [/reflog show/, { stdout: 'tip\nmid\n' }]
+  const v = await checkCleanup(host([[/rev-parse HEAD/, { stdout: 'old\n' }], reflog]), S, CTX, t)
+  expect(v).toMatchObject({ ok: false, reason: expect.stringContaining('jamais poussés') })
 })
 
 test('the session itself runs in the tree: doubt', async () => {
@@ -98,7 +115,7 @@ test('git status --short fails: doubt', async () => {
 
 test('unreadable HEAD (rev-parse fails): doubt', async () => {
   const v = await checkCleanup(host([[/rev-parse HEAD/, { exitCode: 128 }]]), S, CTX, t)
-  expect(v).toMatchObject({ ok: false, reason: expect.stringContaining('après la PR') })
+  expect(v).toMatchObject({ ok: false, reason: expect.stringContaining('jamais poussés') })
 })
 
 const NO_TREE = 'worktree /r\nHEAD a\nbranch refs/heads/production\n'
@@ -108,9 +125,18 @@ test('lone branch, gone: ok (nothing to delete)', async () => {
   expect(await checkCleanup(h, S, CTX, t)).toEqual({ ok: true, tree: null })
 })
 
-test('lone branch with commits after the PR: doubt', async () => {
+test('lone branch with commits never pushed: doubt', async () => {
   const h = fakeHost([[/worktree list --porcelain/, { stdout: NO_TREE }], [/rev-parse --verify/, { stdout: 'other\n' }]]).host
-  expect(await checkCleanup(h, S, CTX, t)).toEqual({ ok: false, reason: 'des commits ont été ajoutés après la PR sur la branche feat/x' })
+  expect(await checkCleanup(h, S, CTX, t)).toEqual({ ok: false, reason: 'la branche feat/x a des commits jamais poussés sur GitHub' })
+})
+
+test('lone branch on a tip rewritten on GitHub after the push: ok', async () => {
+  const h = fakeHost([
+    [/worktree list --porcelain/, { stdout: NO_TREE }],
+    [/rev-parse --verify/, { stdout: 'old\n' }],
+    [/reflog show --format=%H refs\/remotes\/origin\/feat\/x/, { stdout: 'tip\nold\n' }],
+  ]).host
+  expect(await checkCleanup(h, S, CTX, t)).toEqual({ ok: true, tree: null })
 })
 
 test('lone branch at the PR tip: ok', async () => {
@@ -125,5 +151,5 @@ test('tree listed but folder deleted by hand: ok without tree if the branch is a
 
 test('tree listed but folder gone, branch moved on: doubt', async () => {
   const h = host([[/^test -d/, { exitCode: 1 }], [/rev-parse --verify/, { stdout: 'other\n' }]])
-  expect(await checkCleanup(h, S, CTX, t)).toMatchObject({ ok: false, reason: expect.stringContaining('sur la branche') })
+  expect(await checkCleanup(h, S, CTX, t)).toMatchObject({ ok: false, reason: expect.stringContaining('la branche feat/x') })
 })
