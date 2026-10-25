@@ -160,7 +160,7 @@ Pour un plugin chargé avec `--plugin-dir`, la clé est `lighthouse@inline`. Cha
 - **Un déploiement que tu lances dans la conversation.** Claude peut lancer lui-même une commande de déploiement dans un dépôt qui a une PR fusionnée : `make deploy`, `make …-push`, `helm upgrade`, `kubectl apply`, `gh workflow run`, `terraform apply`, `npm run deploy`, `./…deploy….sh`, ou la commande que le mod a proposée. Cette PR est alors marquée comme prise en charge par cette conversation pendant 30 minutes. Il n'y a ni bouton « Déployer » ni notification de doute, et sa carte dit qu'elle se déploie ici (ou dans une autre conversation). Si la commande réussit, la PR est déployée et le nettoyage suit. Un workflow lancé à la main est suivi sur GitHub à la place.
 - **Nettoyage.** Le mod lance `git worktree remove` puis `git branch -D`, seulement si tout ceci est vrai :
   - la PR est fusionnée ;
-  - le worktree et la branche n'ont aucun commit après la tête de la PR ;
+  - le worktree et la branche ne portent rien que GitHub n'ait jamais eu : ils sont à la tête de la PR, en retard sur elle (des sous-PR fusionnées dans la branche là-bas), ou sur une tête poussée avant que la branche y soit rebasée ;
   - il n'y a aucune modification non commitée ;
   - aucune autre conversation n'y travaille.
 

@@ -187,12 +187,12 @@ const fr = {
     notDeployed: (stage: string) => `déploiement pas confirmé (${stage})`,
     worktreesUnreadable: 'liste des worktrees illisible',
     currentInMain: (branch: string) => `${branch} est la branche courante du dossier principal`,
-    commitsAfterPrOn: (branch: string) => `des commits ont été ajoutés après la PR sur la branche ${branch}`,
+    unpushedCommitsOn: (branch: string) => `la branche ${branch} a des commits jamais poussés sur GitHub`,
     thisSessionInside: 'cette conversation tourne dans ce worktree',
     otherSessionInside: 'une autre conversation travaille dans ce worktree',
     statusFailed: (path: string) => `git status a échoué dans ${path}`,
     uncommittedIn: (n: number, path: string) => `${n} fichier(s) non commité(s) dans ${path}`,
-    commitsAfterPr: (head: string | undefined, pr: string | undefined) => `des commits ont été ajoutés après la PR (HEAD ${head} ≠ PR ${pr})`,
+    unpushedCommits: (head: string | undefined, pr: string | undefined) => `des commits locaux jamais poussés sur GitHub (HEAD ${head}, PR ${pr})`,
   },
 
   activity: {
@@ -424,12 +424,12 @@ const en: Texts = {
     notDeployed: stage => `deploy not confirmed (${stage})`,
     worktreesUnreadable: 'worktree list unreadable',
     currentInMain: branch => `${branch} is the current branch of the main folder`,
-    commitsAfterPrOn: branch => `commits were added after the PR on branch ${branch}`,
+    unpushedCommitsOn: branch => `branch ${branch} has commits never pushed to GitHub`,
     thisSessionInside: 'this session runs in that worktree',
     otherSessionInside: 'another session is working in that worktree',
     statusFailed: path => `git status failed in ${path}`,
     uncommittedIn: (n, path) => `${n} uncommitted file(s) in ${path}`,
-    commitsAfterPr: (head, pr) => `commits were added after the PR (HEAD ${head} ≠ PR ${pr})`,
+    unpushedCommits: (head, pr) => `local commits never pushed to GitHub (HEAD ${head}, PR ${pr})`,
   },
 
   activity: {
