@@ -56,6 +56,8 @@ On a press, the mod fetches again. If the version changed in the meantime (a fea
 
 The band above the prompt only shows what waits for you in this session: a deploy doubt (with a notification and a "Deploy" button), a failed deploy (notification, "Deploy" and "Forget"), and a cleanup doubt ("Clean up", no notification).
 
+A branch name, or a title waiting in the Releases pane, that the pane cuts to its width unfolds whole, dimmed, just below while the pointer is on it.
+
 The local git state is refreshed every 10 seconds. GitHub is read at most every 30 seconds per repo (2 minutes for the PRs to review), through a cache shared by all sessions, and at once after any git or gh command or a button press.
 
 ## Install

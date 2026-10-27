@@ -602,3 +602,32 @@ test('the Releases pane does not open on its own with nothing to ship', { option
   await clock.advance(3_000)
   expect(lines.some(l => l.startsWith('ui.open release'))).toBe(false)
 })
+
+const LONG = 'feat/release-auto-open-when-the-session-repo-has-something-to-ship'
+
+test('a branch name longer than the pane unfolds whole on hover; a short one does not', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const refs = [`${LONG}\torigin/main\t\t`, 'feat/y\torigin/main\t\t', 'main\torigin/main\t\t/w/web'].join('\n')
+  engine(on, {}, { cwd: '/w/web' }, undefined, [], [[/for-each-ref/, refs], [/rev-list --count origin\/main\.\./, '2\n']])
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  const ui = await $.ui.mount({ plugin: 'lighthouse', surface: 'desktop', ...(PANE as object) } as never)
+  // Twice: the line the pane cuts, and the whole name hidden below it until hovered.
+  expect(await ui.findAll({ type: 'Text', text: `⎇ ${LONG}` })).toHaveLength(2)
+  expect(await ui.findAll({ type: 'Text', text: '⎇ feat/y' })).toHaveLength(1)
+})
+
+test('releases pane: a title longer than the pane unfolds whole on hover', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const title = 'make the release pane show every waiting change in full on hover'
+  engine(on, { [CONFIG_FILE]: RELEASE_CONFIG }, { cwd: '/w/web' }, undefined, [], [
+    [/log --first-parent --format=\S+ v0\.2\.40\.\.origin\/main/, commit('a1', `fix(api): ${title} (#2)`) + commit('b2', 'feat(ui): two (#3)')],
+    ...RELEASE_GIT,
+  ])
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  await $.command.run({ command: 'release', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'lighthouse', surface: 'desktop', ...(RELEASE_PANE as object) } as never)
+  expect(await ui.findAll({ type: 'Text', text: title })).toHaveLength(2)
+  expect(await ui.findAll({ type: 'Text', text: 'two' })).toHaveLength(1)
+})
