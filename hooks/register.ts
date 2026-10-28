@@ -576,7 +576,7 @@ export const register: Register = (on, options) => {
     return {}
   })
   on('ui.render', { component: 'Pane', requestId: 'release' }, async ($, e) =>
-    drawReleasePane($.ui.resolve(e), await read($, RELEASES), await read($, EXPANDED), await read($, REFRESHING), await read($, PRESSED), buttons($, state), t),
+    drawReleasePane($.ui.resolve(e), e.props.bodyColumns ?? 0, await read($, RELEASES), await read($, EXPANDED), await read($, REFRESHING), await read($, PRESSED), buttons($, state), t),
   )
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) =>
@@ -584,6 +584,6 @@ export const register: Register = (on, options) => {
   )
   // Literal: the validator refuses an imported constant; same value as PANE (ui/pane.tsx).
   on('ui.render', { component: 'Pane', requestId: 'lighthouse' }, async ($, e) =>
-    drawPane($.ui.resolve(e), await read($, TREES), await read($, EVENTS), await read($, EXPANDED), await read($, PENDING_MERGE), await read($, ACTIVITIES), await read($, CELEBRATING), await read($, REFRESHING), await read($, PRESSED), await read($, REVIEWS), await read($, INTENT), (await read($, RELEASES)).reduce((n, r) => n + r.waiting.length, 0), buttons($, state), t),
+    drawPane($.ui.resolve(e), e.props.bodyColumns ?? 0, await read($, TREES), await read($, EVENTS), await read($, EXPANDED), await read($, PENDING_MERGE), await read($, ACTIVITIES), await read($, CELEBRATING), await read($, REFRESHING), await read($, PRESSED), await read($, REVIEWS), await read($, INTENT), (await read($, RELEASES)).reduce((n, r) => n + r.waiting.length, 0), buttons($, state), t),
   )
 }

@@ -4,13 +4,19 @@ import { distribute, type Activity } from '../activity'
 import type { Texts } from '../i18n'
 import type { LocalBranch, PrSummary, ReviewRequest, TreeState, Tracked } from '../model'
 import type { Buttons } from './band'
+import { mayCut, unfold } from './unfold'
 import { branchActions, branchChips, CHECK_FRAMES, prLocalLine, prProgress, summaryLine, trackedProgress, type Step, eventLine, layout, prActions, prChips, repoColor, repoCounts, repoDetails, shorten, trackedChips, type RepoInGroup, type SessionGroup } from './lines'
 
 export const PANE = 'lighthouse'
 
+/** Cells a card's line loses to its session frame (border and padding, both sides) and its own indent. */
+const CARD_INDENT = 6
+
 /** Components, read atoms and `$` stay in register.ts: Claude Code refuses `$` crossing an import. */
 export function drawPane(
   ui: ReturnType<EngineInterface['ui']['resolve']>,
+  /** The pane's width in cells (0 when unknown): a branch name longer than its room unfolds on hover. */
+  columns: number,
   trees: readonly TreeState[],
   events: readonly Tracked[],
   expanded: Readonly<Record<string, boolean>>,
@@ -102,7 +108,12 @@ export function drawPane(
           <Link href={p.url} label={`#${p.number}`} />
           <Text wrap="truncate-end">{p.title}</Text>
         </Box>
-        {prLocalLine(p, t) && <Text dimColor wrap="truncate-middle">{prLocalLine(p, t)}</Text>}
+        {prLocalLine(p, t) && (
+          <Box key={`local-${key}`} flexDirection="column">
+            <Text dimColor wrap="truncate-middle">{prLocalLine(p, t)}</Text>
+            {unfold(ui, prLocalLine(p, t) ?? '', mayCut(prLocalLine(p, t) ?? '', columns, CARD_INDENT))}
+          </Box>
+        )}
         {progress(prProgress(p, t), key)}
         {p.facts?.text ? <Text dimColor={!p.facts.stale} color={p.facts.stale ? 'warning' : undefined} wrap="truncate-end">{`${p.facts.stale ? '⚠ ' : ''}${p.facts.text}`}</Text> : null}
         <Box columnGap={2} flexWrap="wrap">
@@ -136,9 +147,12 @@ export function drawPane(
     const actions = branchActions(a, b)
     return (
       <Box key={key} flexDirection="column" paddingLeft={2 + indent} marginTop={1}>
-        <Box gap={1}>
-          <Text wrap="truncate-middle">{`⎇ ${b.name}`}</Text>
-          {b.path && <Text dimColor>{t.worktree.trim()}</Text>}
+        <Box key={`name-${key}`} flexDirection="column">
+          <Box gap={1}>
+            <Text wrap="truncate-middle">{`⎇ ${b.name}`}</Text>
+            {b.path && <Text dimColor>{t.worktree.trim()}</Text>}
+          </Box>
+          {unfold(ui, `⎇ ${b.name}`, mayCut(`⎇ ${b.name}${b.path ? t.worktree : ''}`, columns, CARD_INDENT + indent))}
         </Box>
         <Box columnGap={2} flexWrap="wrap">
           {branchChips(b, t).map(x => (

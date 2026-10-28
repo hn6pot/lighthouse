@@ -4,12 +4,15 @@ import type { Texts } from '../i18n'
 import type { ReleaseEntry, ReleaseKind, ReleaseRepo } from '../model'
 import { outcomeText } from '../release/collect'
 import type { Buttons } from './band'
+import { mayCut, unfold } from './unfold'
 
 export const RELEASE_PANE = 'release'
 
 /** Components, read atoms and `$` stay in register.ts: Claude Code refuses `$` crossing an import. */
 export function drawReleasePane(
   ui: ReturnType<EngineInterface['ui']['resolve']>,
+  /** The pane's width in cells (0 when unknown): a title longer than its room unfolds on hover. */
+  columns: number,
   repos: readonly ReleaseRepo[],
   expanded: Readonly<Record<string, boolean>>,
   refreshing: boolean,
@@ -22,10 +25,14 @@ export function drawReleasePane(
   const refresh = <Button key="refresh" plain dimColor label={refreshing ? '⋯' : t.button.refresh} onPress={() => buttons.refresh()} />
   const S = t.releasePane
 
+  // The repo frame (border and padding, both sides), the entry's indent, and its `#123 ` link.
   const entryLine = (r: ReleaseRepo, e: ReleaseEntry, key: string) => (
-    <Box key={`${key}-${e.sha}`} gap={1} paddingLeft={2}>
-      {e.number !== null ? <Link href={`https://github.com/${r.slug}/pull/${e.number}`} label={`#${e.number}`} /> : null}
-      <Text wrap="truncate-end">{e.title}</Text>
+    <Box key={`${key}-${e.sha}`} flexDirection="column" paddingLeft={2}>
+      <Box gap={1}>
+        {e.number !== null ? <Link href={`https://github.com/${r.slug}/pull/${e.number}`} label={`#${e.number}`} /> : null}
+        <Text wrap="truncate-end">{e.title}</Text>
+      </Box>
+      {unfold(ui, e.title, mayCut(e.title, columns, 6 + (e.number === null ? 0 : String(e.number).length + 2)))}
     </Box>
   )
 

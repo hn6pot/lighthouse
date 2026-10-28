@@ -57,6 +57,8 @@ Un dépôt avec une règle `release` (voir Configuration) ne se déploie pas apr
 
 Le bandeau au-dessus du prompt ne montre que ce qui t'attend dans cette conversation : un déploiement à confirmer (avec une notification et un bouton « Déployer »), un déploiement en échec (notification, « Déployer » et « Oublier »), et un nettoyage en attente (« Nettoyer », sans notification).
 
+Un nom de branche, ou un titre en attente dans le panneau Releases, que le panneau coupe à sa largeur se déplie en entier, en grisé, juste en dessous tant que le pointeur est dessus.
+
 L'état git local est rafraîchi toutes les 10 secondes. GitHub est lu au plus toutes les 30 secondes par dépôt (2 minutes pour les PRs à relire), via un cache partagé par toutes les conversations, et tout de suite après chaque commande git ou gh ou chaque appui sur un bouton.
 
 ## Installation
