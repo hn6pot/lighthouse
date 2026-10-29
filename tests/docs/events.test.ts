@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { applyDocEvents, capturePublish, resolveDoc } from '../../hooks/docs/events'
+import { applyDocEvents, capturePublish, resolveDoc, toolDocEvents } from '../../hooks/docs/events'
 import { loadConversation, loadPublish } from '../../hooks/docs/records'
 import type { Repo } from '../../hooks/model'
 import { fakeHost, type Answer } from '../helpers/fake-host'
@@ -86,4 +86,26 @@ test('a document outside any repo is identified by its ~ path; a non-document is
   expect(await resolveDoc(host, '/Users/me/out/acme/docs/specs/z.md')).toBe('~/out/acme/docs/specs/z.md')
   expect(await resolveDoc(host, '/r/api/.worktrees/a/docs/plans/a.md')).toBe('acme/api:docs/plans/a.md')
   expect(await resolveDoc(host, '/r/api/src/x.ts')).toBe(null)
+})
+
+test('code written on the base branch links nothing', async () => {
+  const { host, store } = fakeHost([[/symbolic-ref --short refs\/remotes\/origin\/HEAD/, { stdout: 'origin/main\n' }], ...GIT])
+  await applyDocEvents(host, store, 's1', [
+    { kind: 'write', path: '/r/api/docs/specs/a.md', at: 1 },
+    { kind: 'commit', folder: '/r/api', at: 2 },
+  ])
+  expect((await loadConversation(store, 's1')).links).toEqual([])
+})
+
+test('toolDocEvents: a write, a commit, or nothing', () => {
+  const base = { command: null, folder: '/w', here: '/w', home: '/Users/me', at: 5, paneAgent: false }
+  expect(toolDocEvents({ ...base, tool: 'Edit', input: { file_path: 'docs/specs/a.md' } })).toEqual([{ kind: 'write', path: '/w/docs/specs/a.md', at: 5 }])
+  expect(toolDocEvents({ ...base, tool: 'Bash', input: {}, command: 'git -C /r commit -m x', folder: '/r' })).toEqual([{ kind: 'commit', folder: '/r', at: 5 }])
+  expect(toolDocEvents({ ...base, tool: 'Read', input: { file_path: 'a.md' } })).toEqual([])
+})
+
+test('toolDocEvents: a pane agent’s writes and commits link nothing, it works on another piece of work', () => {
+  const base = { command: null, folder: '/w', here: '/w', home: '/Users/me', at: 5, paneAgent: true }
+  expect(toolDocEvents({ ...base, tool: 'Edit', input: { file_path: 'src/a.ts' } })).toEqual([])
+  expect(toolDocEvents({ ...base, tool: 'Bash', input: {}, command: 'git commit -m x' })).toEqual([])
 })

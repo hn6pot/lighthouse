@@ -14,9 +14,8 @@ import { addFolder, addPrLink, cleanNow, forgetNow, refreshConfig, tick, type Co
 import type { ReleaseRepo, TreeState } from './model'
 import { prLinks, touchedFolders } from './repos/detect'
 import { artifactUrl, publishedHtml } from './docs/artifact'
-import { capturePublish, type DocEvent } from './docs/events'
+import { capturePublish, toolDocEvents, type DocEvent } from './docs/events'
 import { docsStore } from './docs/records'
-import { join } from './paths'
 import { push } from './repos/git'
 import { DATA_DIR, forgetSession, record } from './sessions/registry'
 import { drawBand, type Buttons } from './ui/band'
@@ -34,10 +33,6 @@ const AFTER_COMMAND_MS = 1_500
 const GIT_COMMAND = /(^|[\s;&|(])(git|gh)\s/
 /** These also move the base: it is reread without waiting for the fetch interval. */
 const MOVES_BASE = /\b(merge|pull|push|fetch|rebase)\b/
-/** A commit, in the session's folder or another (`git -C <folder> commit`). */
-const GIT_COMMIT = /\bgit\s+(?:-C\s+\S+\s+)?commit\b/
-/** The tools that write a file at `file_path`. */
-const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit'])
 /** Heartbeat in the registry: other sessions read there that this one is still alive. */
 const HEARTBEAT_MS = 60_000
 
@@ -535,16 +530,16 @@ export const register: Register = (on, options) => {
     try {
       const docs = ctx.docs
       const tool = String(e.tool)
-      const events: DocEvent[] = []
       const at = await host.now()
-      if (WRITE_TOOLS.has(tool) && typeof input.file_path === 'string') events.push({ kind: 'write', path: join(here, input.file_path, host.home), at })
-      if (command !== null && GIT_COMMIT.test(command)) events.push({ kind: 'commit', folder: touched[0] ?? here, at })
+      // A pane agent fixes another piece of work (CI, comments, conflicts): its files are not this conversation's.
+      const paneAgent = agent !== undefined
+      const events: DocEvent[] = toolDocEvents({ tool, input, command, folder: touched[0] ?? here, here, home: host.home, at, paneAgent })
       // A failed publish may name the page in its error: only a success counts, read now as it was published.
       const html = publishedHtml(tool, input, here, host.home)
       const failed = 'isError' in result && result.isError === true
       const url = html !== null && !failed && 'result' in result ? artifactUrl(result.result) : null
       const published = html !== null && url !== null ? await capturePublish(host, html, url, [...ctx.repos.values()], at) : null
-      if (published) events.push(published)
+      if (published && !paneAgent) events.push(published)
       if (docs) docs.events.push(...events)
     } catch {
       // never block the tool: the documents are only shown
