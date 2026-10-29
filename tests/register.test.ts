@@ -631,3 +631,17 @@ test('releases pane: a title longer than the pane unfolds whole on hover', { opt
   expect(await ui.findAll({ type: 'Text', text: title })).toHaveLength(2)
   expect(await ui.findAll({ type: 'Text', text: 'two' })).toHaveLength(1)
 })
+
+test('an Artifact publish of a tagged page: the page is copied and recorded at the next tick', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const files: Record<string, string> = { '/tmp/s/spec.html': '<meta name="lighthouse-source" content="acme/web:docs/specs/a.md">' }
+  const lines = engine(on, files, { cwd: '/w/web' })
+  on('tool.call', async () => ({ result: 'Published /tmp/s/spec.html at https://claude.ai/artifact/abc (Version 1)' }) as never)
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  await $.tool.call({ tool: 'Artifact', tool_use_id: 't1', file_path: '/tmp/s/spec.html' } as never)
+  await clock.advance(3_000)
+  expect(lines).toContain('cp /tmp/s/spec.html /Users/me/.lighthouse/pages/acme/web/docs/specs/a.html')
+  const record = Object.entries(files).find(([path]) => path.startsWith('/Users/me/.lighthouse/docs/pub'))
+  expect(record?.[1]).toContain('https://claude.ai/artifact/abc')
+})

@@ -43,6 +43,27 @@ A last frame, **To review**, lists the open PRs where your review is requested, 
 
 With the [intent](https://github.com/hn6pot/intent) mod enabled, each of them, and each of your own PRs, gets a **Review with intent** button: it runs `/intent <PR link>`, which opens intent's review page on that PR (the why behind each change). A mod cannot import another one, so the slash command is the only link between the two; without intent, the button is not shown.
 
+### Specs and plans
+
+Each PR card and each branch line lists its **specs and plans**: Markdown files under a folder named `specs` or `plans` (`docs/specs/x.md`, `docs/superpowers/plans/y.md`), in the repo or outside any repo (`~/claude-outputs/acme/docs/specs/z.md`). One line each, specs first, four at most:
+
+```
+▤ Spec rate-limiting · approved   Page ↗  Copy
+▤ Plan rate-limiting · in progress   Page ↗  ⚠ out of date  Copy
+```
+
+- **Which ones.** The documents the branch adds or modifies (against its base, plus uncommitted ones in its worktree); the ones written or published in the session that then wrote code in the branch's worktree, until that session starts a new spec; and the specs those plans cite, by path or file name.
+- **Where they stand**, deduced, never written in the document. A spec is a *draft*, *approved* once a plan cites it, *implemented* once every plan citing it is (or, with no plan, once a PR touching code is merged). A plan is a *draft*, *in progress* once code follows it on the branch, *implemented* once its PR is merged. A merged PR that only touches `specs` or `plans` folders counts for nothing.
+- **Page ↗** opens the document's claude.ai page. Lighthouse knows it when Claude publishes, with the Artifact tool, an HTML page whose `<head>` names its Markdown:
+
+  ```html
+  <meta name="lighthouse-source" content="acme/api:docs/specs/2026-10-29-rate-limiting-design.md">
+  ```
+
+  `owner/repo:path` for a document in a repo, `~/path` for one outside any repo. Lighthouse never adds the tag: ask for it in your own publishing rules. A page without it is not linked.
+- **⚠ out of date**: the Markdown changed since its page was last published.
+- **Copy** opens the local copy Lighthouse keeps of the page's latest publish, in case the page is lost. **Markdown** opens the file itself, for a document without a page.
+
 ### Releases
 
 A repo with a `release` rule (see Configuration) does not deploy after each merge. Its merged PRs wait, and its worktree and branch are cleaned at once. The summary line counts them ("4 to release"). The **Releases** pane opens on its own, once, in a session that works in a release repo with something to ship (never again once you close it; **`/release`** reopens it, from any session). One frame per release repo:
@@ -186,8 +207,10 @@ Everything lives under `~/.lighthouse/`:
 | `locks/` | Repo locks. |
 | `logs/` | Logs of the deploys and releases the mod launched. |
 | `releases/` | The last release of each release repo: what was launched (a JSON record, also the lock), its script, and its exit code once done. |
+| `docs/` | What the mod knows of specs and plans: each page published (link, date, hash of its Markdown), the conversations' links to branches, the documents of each branch. |
+| `pages/` | The local copy of each published page, the latest one. |
 
-Apart from `config.json`, deleting this folder is safe, unless a deploy or a release is running. It is recreated when needed, but PRs that were already merged will no longer be tracked.
+Apart from `config.json`, deleting this folder is safe, unless a deploy or a release is running. It is recreated when needed, but PRs that were already merged will no longer be tracked, and the page links and copies are lost (republishing a page brings its link back).
 
 ## Develop
 
