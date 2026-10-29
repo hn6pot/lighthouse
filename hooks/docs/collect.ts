@@ -8,7 +8,8 @@ import { copyPath, docKind, docName, parseDocId, repoDocId, type DocId } from '.
 import { implementedBy, loadPublish, loadSnapshot, markImplemented, saveSnapshot } from './records'
 import { planState, specState } from './status'
 
-export type BranchRef = { root: string; slug: string | null; base: string; branch: string; path: string | null }
+/** `specsOnBase`: the specs on the base, when the caller listed them once for all its branches. */
+export type BranchRef = { root: string; slug: string | null; base: string; branch: string; path: string | null; specsOnBase?: readonly string[] }
 
 /** A spec outside any repo, cited by its `~/…` path in a plan. */
 const LOCAL_SPEC = /~\/[^\s`'"()<>[\]]*\/specs\/[^\s`'"()<>[\]]+\.md/g
@@ -54,7 +55,7 @@ export async function branchDocs(host: Host, store: Store, b: BranchRef, links: 
 
   // The specs the plans cite: on the base or already here (by path or file name), or outside a repo (by `~/…` path).
   const plans = ids.filter(id => docKind(id) === 'plan')
-  const candidates = slug === null ? [] : [...new Set([...(await baseSpecs(host, b.root, b.base)), ...ids.flatMap(id => (docKind(id) === 'spec' && id.startsWith(`${slug}:`) ? [id.slice(slug.length + 1)] : []))])]
+  const candidates = slug === null ? [] : [...new Set([...(b.specsOnBase ?? (await baseSpecs(host, b.root, b.base))), ...ids.flatMap(id => (docKind(id) === 'spec' && id.startsWith(`${slug}:`) ? [id.slice(slug.length + 1)] : []))])]
   for (const plan of plans) {
     const { text } = await locate(plan)
     if (text === null) continue
@@ -94,14 +95,16 @@ export async function branchDocs(host: Host, store: Store, b: BranchRef, links: 
       state,
       file: at.file,
       ...(publish ? { page: publish.url } : {}),
-      ...(copy !== null && (await host.read(copy)) !== null ? { copy } : {}),
+      // Written with its record at publish time: never read here, a page may weigh megabytes.
+      ...(copy !== null ? { copy } : {}),
       stale: publish !== null && publish.hash !== null && hash !== null && publish.hash !== hash,
     })
   }
   // Only grows: once the PR is merged, the base may contain the branch and its diff go empty.
   const before = await loadSnapshot(store, b.root, b.branch)
   const kept = [...(before?.docs ?? []), ...ids.filter(id => !before?.docs.includes(id))]
-  await saveSnapshot(store, b.root, b.branch, { docs: kept, code: touched.code || (before?.code ?? false), at: await host.now() })
+  const code = touched.code || (before?.code ?? false)
+  if (!before || kept.length !== before.docs.length || code !== before.code) await saveSnapshot(store, b.root, b.branch, { docs: kept, code, at: await host.now() })
   return docs.sort((x, y) => (x.kind === y.kind ? x.name.localeCompare(y.name) : x.kind === 'spec' ? -1 : 1))
 }
 

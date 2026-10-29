@@ -54,13 +54,17 @@ test('the Markdown changed since the publish: stale', async () => {
   expect((await branchDocs(host, store, REF, [])).find(d => d.id === SPEC_ID)?.stale).toBe(true)
 })
 
-test('a publish recorded without a hash never says stale; a page whose copy is gone has no Copy', async () => {
+test('a publish recorded without a hash never says stale; its copy is offered without reading it', async () => {
   const { [COPY]: _gone, ...files } = BOTH.files
   const { host, store } = world({ ...BOTH, files })
+  const read = host.read
+  const reads: string[] = []
+  host.read = async path => (reads.push(path), read(path))
   await savePublish(store, SPEC_ID, { url: 'https://claude.ai/artifact/x', at: 1, hash: null, session: 's1' })
   const spec = (await branchDocs(host, store, REF, [])).find(d => d.id === SPEC_ID)
   expect(spec?.stale).toBe(false)
-  expect(spec?.copy).toBe(undefined)
+  expect(spec?.copy).toBe(COPY)
+  expect(reads).not.toContain(COPY) // a page copy may weigh megabytes: never read each pass
 })
 
 test('a spec only linked by the conversation (written on main before the worktree) shows on the branch', async () => {
@@ -102,7 +106,7 @@ test('a branch without a worktree: hash from the branch, no file when main lacks
   const { host, store } = world({ diff: `${SPEC}\n`, extra: [[/rev-parse feat\/a:docs\/specs/, { stdout: 'blob-b\n' }]] })
   await savePublish(store, SPEC_ID, { url: 'https://claude.ai/artifact/x', at: 1, hash: 'blob-b', session: 's1' })
   expect(await branchDocs(host, store, { ...REF, path: null }, [])).toEqual([
-    { id: SPEC_ID, kind: 'spec', name: 'a', state: 'draft', file: null, page: 'https://claude.ai/artifact/x', stale: false },
+    { id: SPEC_ID, kind: 'spec', name: 'a', state: 'draft', file: null, page: 'https://claude.ai/artifact/x', copy: COPY, stale: false },
   ])
 })
 
@@ -136,5 +140,20 @@ test('a snapshot only grows: once merged, an empty diff does not erase what the 
   const { host, store } = world({ diff: '' })
   await saveSnapshot(store, '/r', 'feat/a', { docs: [SPEC_ID], code: true, at: 1 })
   await branchDocs(host, store, REF, [])
-  expect(await loadSnapshot(store, '/r', 'feat/a')).toEqual({ docs: [SPEC_ID], code: true, at: 0 })
+  expect(await loadSnapshot(store, '/r', 'feat/a')).toEqual({ docs: [SPEC_ID], code: true, at: 1 })
+})
+
+test('the snapshot is written only when what the branch holds changes', async () => {
+  const { host, store } = world(BOTH)
+  const writes: string[] = []
+  const counted = { get: (k: string) => store.get(k), delete: (k: string) => store.delete(k), keys: () => store.keys(), set: async (k: string, v: unknown) => (writes.push(k), store.set(k, v)) }
+  await branchDocs(host, counted, REF, [])
+  await branchDocs(host, counted, REF, [])
+  expect(writes.filter(k => k.startsWith('snap:'))).toHaveLength(1)
+})
+
+test('specs on the base given by the caller: no listing of the base tree', async () => {
+  const { host, store, calls } = world(BOTH)
+  await branchDocs(host, store, { ...REF, specsOnBase: [] }, [])
+  expect(calls.some(c => c.line.includes('ls-tree'))).toBe(false)
 })

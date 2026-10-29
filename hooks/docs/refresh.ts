@@ -2,6 +2,7 @@
 import type { Host, Store } from '../host'
 import type { BranchDoc, TreeState, Tracked } from '../model'
 import { branchDocs, markMerged, type BranchRef } from './collect'
+import { baseSpecs } from './git-docs'
 import { applyDocEvents, type DocEvent } from './events'
 import { allLinks, forgetBranches, loadSnapshot, saveSnapshot } from './records'
 
@@ -34,8 +35,12 @@ export async function refreshDocs(host: Host, docs: DocsContext, session: string
 
   const links = await allLinks(docs.store)
   const byBranch = new Map<string, BranchDoc[]>()
+  const specsOf = new Map<string, readonly string[]>()
   for (const tree of trees) {
-    const ref = (branch: string, path: string | null): BranchRef => ({ root: tree.root, slug: tree.slug, base: tree.base, branch, path })
+    // Listed once per repo: the same for all its branches.
+    const specsOnBase = tree.slug === null ? [] : await baseSpecs(host, tree.root, tree.base)
+    specsOf.set(tree.root, specsOnBase)
+    const ref = (branch: string, path: string | null): BranchRef => ({ root: tree.root, slug: tree.slug, base: tree.base, branch, path, specsOnBase })
     const refs = [...tree.branches.map(b => ref(b.name, b.path)), ...tree.prs.flatMap(p => (p.localBranch && !tree.branches.some(b => b.name === p.localBranch) ? [ref(p.localBranch, p.path)] : []))]
     for (const r of refs) {
       try {
@@ -62,7 +67,7 @@ export async function refreshDocs(host: Host, docs: DocsContext, session: string
     try {
       const snap = await loadSnapshot(docs.store, s.root, s.branch)
       const path = tree.branches.find(b => b.name === s.branch)?.path ?? null
-      const ref: BranchRef = { root: s.root, slug: tree.slug, base: s.base, branch: s.branch, path }
+      const ref: BranchRef = { root: s.root, slug: tree.slug, base: s.base, branch: s.branch, path, ...(s.base === tree.base ? { specsOnBase: specsOf.get(tree.root) } : {}) }
       byBranch.set(keyOf(s.root, s.branch), await branchDocs(host, docs.store, ref, links, snap?.docs ?? []))
     } catch {
       // the card shows no documents

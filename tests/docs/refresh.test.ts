@@ -84,3 +84,9 @@ test('once its PR is cleaned up, a branch name forgets its links and snapshot: a
   expect(await loadSnapshot(docs.store, '/r', 'feat/m')).toBe(null)
   expect((await allLinks(docs.store)).map(l => l.branch)).toEqual(['feat/a'])
 })
+
+test('the base tree is listed once per repo, not once per branch', async () => {
+  const { host, calls } = world()
+  await refreshDocs(host, docsCtx(), 's1', [tree({ branches: [branch('feat/a'), branch('feat/b'), branch('feat/c')] })], [], 0)
+  expect(calls.filter(c => c.line.includes('ls-tree')).length).toBe(1)
+})
