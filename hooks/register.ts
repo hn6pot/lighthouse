@@ -471,7 +471,7 @@ export const register: Register = (on, options) => {
         running = false
         if (replay) {
           replay = false
-          void runTick()
+          void runTick().catch(() => undefined)
         } else {
           await update($, REFRESHING, () => false)
         }
@@ -484,11 +484,11 @@ export const register: Register = (on, options) => {
       scheduled = true
       $.clock.after(AFTER_COMMAND_MS, () => {
         scheduled = false
-        void runTick()
+        void runTick().catch(() => undefined)
       })
     }
-    $.clock.after(3_000, () => void runTick())
-    $.clock.every(TICK_MS, () => void runTick())
+    $.clock.after(3_000, () => void runTick().catch(() => undefined))
+    $.clock.every(TICK_MS, () => void runTick().catch(() => undefined))
     $.clock.every(HEARTBEAT_MS, () => void heartbeat().catch(() => undefined))
     return next(e)
   })
