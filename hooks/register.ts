@@ -531,7 +531,7 @@ export const register: Register = (on, options) => {
       state.rerun()
     }
 
-    // What touches the specs and plans: noted here, applied at the next tick (no git in this hook).
+    // What touches the specs and plans: noted here, applied by the regular tick (no git here, and no extra tick: a write must not make GitHub be asked again).
     try {
       const docs = ctx.docs
       const tool = String(e.tool)
@@ -542,10 +542,7 @@ export const register: Register = (on, options) => {
       const html = publishedHtml(tool, input, here, host.home)
       const url = html !== null && 'result' in result ? artifactUrl(result.result) : null
       if (html !== null && url !== null) events.push({ kind: 'publish', html, url, at })
-      if (docs && events.length > 0) {
-        docs.events.push(...events)
-        state.rerun()
-      }
+      if (docs) docs.events.push(...events)
     } catch {
       // never block the tool: the documents are only shown
     }

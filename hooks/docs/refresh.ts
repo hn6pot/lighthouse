@@ -15,8 +15,9 @@ const keyOf = (root: string, branch: string) => `${root}@${branch}`
 /** Applies the noted events, then recomputes every shown branch's documents when an event came or DOCS_MS passed; marks merged PRs. */
 export async function refreshDocs(host: Host, docs: DocsContext, session: string, repos: readonly Repo[], trees: readonly TreeState[], tracked: readonly Tracked[], now: number): Promise<void> {
   const events = docs.events.splice(0)
-  if (events.length > 0) await applyDocEvents(host, docs.store, session, repos, events)
-  if (events.length === 0 && docs.at !== undefined && now - docs.at < DOCS_MS) return
+  // Only an event that recorded something skips the wait: code writes mostly link nothing new.
+  const changed = events.length > 0 && (await applyDocEvents(host, docs.store, session, repos, events))
+  if (!changed && docs.at !== undefined && now - docs.at < DOCS_MS) return
   docs.at = now
 
   // Before the branches are read again: once merged, a branch's diff may go empty.

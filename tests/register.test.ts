@@ -640,8 +640,24 @@ test('an Artifact publish of a tagged page: the page is copied and recorded at t
   await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
   await clock.advance(3_000)
   await $.tool.call({ tool: 'Artifact', tool_use_id: 't1', file_path: '/tmp/s/spec.html' } as never)
-  await clock.advance(3_000)
+  await clock.advance(10_000)
   expect(lines).toContain('cp /tmp/s/spec.html /Users/me/.lighthouse/pages/acme/web/docs/specs/a.html')
   const record = Object.entries(files).find(([path]) => path.startsWith('/Users/me/.lighthouse/docs/pub'))
   expect(record?.[1]).toContain('https://claude.ai/artifact/abc')
+})
+
+test('writing a file starts no tick and asks GitHub nothing: the regular tick picks it up', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const lines = engine(on, {}, { cwd: '/w/web' })
+  on('tool.call', async () => ({ result: 'ok' }) as never)
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  const ticks = () => lines.filter(l => / for-each-ref /.test(l)).length
+  const ghCalls = () => lines.filter(l => /^gh pr list/.test(l)).length
+  expect(ticks()).toBe(1)
+  await $.tool.call({ tool: 'Edit', tool_use_id: 't1', file_path: '/w/web/src/a.ts' } as never)
+  await $.tool.call({ tool: 'Write', tool_use_id: 't2', file_path: '/w/web/docs/specs/a.md' } as never)
+  await clock.advance(2_000)
+  expect(ticks()).toBe(1)
+  expect(ghCalls()).toBe(1)
 })

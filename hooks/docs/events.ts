@@ -55,10 +55,11 @@ const kindOf = (id: DocId) => {
   return parsed === null ? null : docKind('path' in parsed ? parsed.path : parsed.rel)
 }
 
-/** Applies the events in order: conversation links, publish records, page copies. */
-export async function applyDocEvents(host: Host, store: Store, session: string, repos: readonly Repo[], events: readonly DocEvent[]): Promise<void> {
+/** Applies the events in order: conversation links, publish records, page copies. True when something was recorded. */
+export async function applyDocEvents(host: Host, store: Store, session: string, repos: readonly Repo[], events: readonly DocEvent[]): Promise<boolean> {
   const before = await loadConversation(store, session)
   let c: Conversation = before
+  let published = false
   const mine = `${host.home}/${DATA_DIR}/`
   for (const e of events) {
     try {
@@ -73,6 +74,7 @@ export async function applyDocEvents(host: Host, store: Store, session: string, 
         await host.run(['mkdir', '-p', parent(copy)])
         await host.run(['cp', e.html, copy])
         await savePublish(store, id, { url: e.url, at: e.at, hash, session })
+        published = true
         continue
       }
       const folder = e.kind === 'commit' ? e.folder : parent(e.path)
@@ -92,4 +94,5 @@ export async function applyDocEvents(host: Host, store: Store, session: string, 
     }
   }
   if (c !== before) await saveConversation(store, session, c)
+  return published || c !== before
 }

@@ -25,12 +25,25 @@ test('no event and less than 30 s since the last pass: nothing recomputed', asyn
   expect(calls.some(c => c.line.includes('diff --name-only'))).toBe(false)
 })
 
-test('an event forces a pass at the next tick, and the events are drained', async () => {
+test('an event that changes something forces a pass, and the events are drained', async () => {
+  const { host, calls } = fakeHost([
+    [/diff --name-only --diff-filter=d origin\/main\.\.\.feat\/a/, { stdout: '' }],
+    [/rev-parse --show-toplevel/, { stdout: '/r\n' }],
+    [/--git-common-dir/, { stdout: '/r/.git\n' }],
+    [/remote get-url origin/, { stdout: 'https://github.com/acme/api.git\n' }],
+  ])
+  const docs: DocsContext = { ...docsCtx(), at: 0, events: [{ kind: 'write', path: '/r/docs/specs/a.md', at: 1 }] }
+  await refreshDocs(host, docs, 's1', [], [tree()], [], 1)
+  expect(docs.events).toEqual([])
+  expect(calls.some(c => c.line.includes('diff --name-only'))).toBe(true)
+})
+
+test('an event that changes nothing (a file outside any repo) waits for the 30 s pass', async () => {
   const { host, calls } = world()
   const docs: DocsContext = { ...docsCtx(), at: 0, events: [{ kind: 'write', path: '/tmp/x.txt', at: 1 }] }
   await refreshDocs(host, docs, 's1', [], [tree()], [], 1)
   expect(docs.events).toEqual([])
-  expect(calls.some(c => c.line.includes('diff --name-only'))).toBe(true)
+  expect(calls.some(c => c.line.includes('diff --name-only'))).toBe(false)
 })
 
 test('a PR pushed under another name: its snapshot is also kept under the PR’s branch', async () => {
