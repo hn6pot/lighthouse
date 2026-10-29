@@ -1,4 +1,5 @@
 // Every text the person or Claude reads, in English (the default) and French.
+import type { DocKind, DocState } from './model'
 
 export type Lang = 'fr' | 'en'
 
@@ -97,6 +98,18 @@ const fr = {
     forget: 'Oublier',
     tidy: 'Ménage',
     intent: 'Relire avec intent',
+  },
+
+  /** A card's specs and plans. */
+  doc: {
+    kind: (k: DocKind) => (k === 'spec' ? 'Spec' : 'Plan'),
+    state: (k: DocKind, st: DocState) =>
+      st === 'draft' ? 'brouillon' : st === 'in-progress' ? 'en cours' : `${st === 'approved' ? 'approuvé' : 'implémenté'}${k === 'spec' ? 'e' : ''}`,
+    page: 'Page ↗',
+    copy: 'Copie',
+    markdown: 'Markdown',
+    outOfDate: '⚠ pas à jour',
+    more: (n: number) => `+${n} autres`,
   },
 
   /** The PRs where my review is requested. */
@@ -338,6 +351,16 @@ const en: Texts = {
     forget: 'Forget',
     tidy: 'Tidy up',
     intent: 'Review with intent',
+  },
+
+  doc: {
+    kind: (k: DocKind) => (k === 'spec' ? 'Spec' : 'Plan'),
+    state: (_k: DocKind, st: DocState) => (st === 'in-progress' ? 'in progress' : st),
+    page: 'Page ↗',
+    copy: 'Copy',
+    markdown: 'Markdown',
+    outOfDate: '⚠ out of date',
+    more: (n: number) => `+${n} more`,
   },
 
   review: {

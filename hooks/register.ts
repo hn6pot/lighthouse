@@ -18,6 +18,7 @@ import { DATA_DIR, forgetSession, record } from './sessions/registry'
 import { drawBand, type Buttons } from './ui/band'
 import { actionPrompt, branchPrompt, CHECK_FRAMES, tidyPrompt } from './ui/lines'
 import { notifyOnce, sendNotification } from './ui/notify'
+import { isOpenable } from './ui/doc-lines'
 import { drawPane, PANE } from './ui/pane'
 import { drawReleasePane } from './ui/release-pane'
 import { launchRelease } from './release/launch'
@@ -229,6 +230,11 @@ const buttons = ($: EngineInterface, state: State): Buttons => {
       // A desktop session id only: it goes into a claude:// link the Mac hands to the Desktop.
       if (!state.host || !/^local_[\w-]+$/.test(desktopId)) return
       return state.host.run(['open', `claude://claude.ai/epitaxy/${desktopId}`]).then(() => undefined, fail)
+    },
+    openPath: path => {
+      // A page copy or a Markdown the tick found: never anything else.
+      if (!state.host || !isOpenable(path)) return
+      return state.host.run(['open', path]).then(() => undefined, fail)
     },
     refresh: () =>
       void (async () => {

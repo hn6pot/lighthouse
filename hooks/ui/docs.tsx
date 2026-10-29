@@ -1,0 +1,37 @@
+// A card's specs and plans: one line each, with their page, its local copy, or the Markdown.
+import type { EngineInterface } from 'claude-code'
+import type { Texts } from '../i18n'
+import type { BranchDoc } from '../model'
+import type { Buttons } from './band'
+import { docLabel, DOCS_SHOWN } from './doc-lines'
+
+/** Components and `$` stay in register.ts: this draws with the resolved `ui` it is given. */
+export function drawDocs(
+  ui: ReturnType<EngineInterface['ui']['resolve']>,
+  docs: readonly BranchDoc[] | undefined,
+  key: string,
+  buttons: Buttons,
+  busy: (key: string, label: string) => string,
+  t: Texts,
+) {
+  const { Box, Button, Link, Text } = ui
+  if (!docs || docs.length === 0) return null
+  const shown = docs.slice(0, DOCS_SHOWN)
+  return (
+    <Box key={`docs-${key}`} flexDirection="column">
+      {shown.map(d => {
+        const k = `${key}-doc-${d.id}`
+        return (
+          <Box key={k} columnGap={1} flexWrap="wrap">
+            <Text dimColor wrap="truncate-end">{docLabel(d, t)}</Text>
+            {d.page ? <Link href={d.page} label={t.doc.page} /> : null}
+            {d.page && d.stale ? <Text color="warning">{t.doc.outOfDate}</Text> : null}
+            {d.copy ? <Button key={`copy-${k}`} plain label={busy(`copy-${k}`, t.doc.copy)} onPress={() => buttons.run(`copy-${k}`, () => buttons.openPath(d.copy ?? ''))} /> : null}
+            {!d.page && d.file ? <Button key={`md-${k}`} plain label={busy(`md-${k}`, t.doc.markdown)} onPress={() => buttons.run(`md-${k}`, () => buttons.openPath(d.file ?? ''))} /> : null}
+          </Box>
+        )
+      })}
+      {docs.length > DOCS_SHOWN ? <Text dimColor>{t.doc.more(docs.length - DOCS_SHOWN)}</Text> : null}
+    </Box>
+  )
+}
