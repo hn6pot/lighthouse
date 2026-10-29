@@ -131,3 +131,10 @@ test('markMerged: an open PR marks nothing', async () => {
   await markMerged(store, { ...merged('feat/a'), stage: 'open' })
   expect(await implementedBy(store, SPEC_ID)).toEqual([])
 })
+
+test('a snapshot only grows: once merged, an empty diff does not erase what the branch had', async () => {
+  const { host, store } = world({ diff: '' })
+  await saveSnapshot(store, '/r', 'feat/a', { docs: [SPEC_ID], code: true, at: 1 })
+  await branchDocs(host, store, REF, [])
+  expect(await loadSnapshot(store, '/r', 'feat/a')).toEqual({ docs: [SPEC_ID], code: true, at: 0 })
+})

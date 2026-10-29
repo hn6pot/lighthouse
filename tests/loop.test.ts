@@ -686,3 +686,18 @@ test('the tick publishes the release repos of the config, even without a session
   await tick(h.host, c, a.actions)
   expect(a.published[0].releases.map(r => [r.slug, r.tag])).toEqual([['acme/app', 'v0.2.40']])
 })
+
+test('with a docs context, a branch that adds a spec shows it on its card', async () => {
+  const h = fakeHost([
+    [/rev-list --count origin\/main\.\.feat\/a/, { stdout: '2\n' }],
+    [/for-each-ref/, { stdout: 'feat/a\t\t\t/w/web/.worktrees/a\tabc\n' }],
+    [/diff --name-only --diff-filter=d origin\/main\.\.\.feat\/a/, { stdout: 'docs/specs/2026-10-01-a-design.md\n' }],
+    [/^gh pr list/, { stdout: '[]' }],
+    ...GIT_BASE,
+  ])
+  const c: Context = { ...ctx(), docs: { store: fakeHost([]).store, events: [], byBranch: new Map() } }
+  await addFolder(h.host, c, '/w/web')
+  const a = actions()
+  await tick(h.host, c, a.actions)
+  expect(a.published.at(-1)?.trees[0].branches[0].docs?.[0]).toMatchObject({ kind: 'spec', name: 'a', state: 'draft' })
+})

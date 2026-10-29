@@ -96,7 +96,10 @@ export async function branchDocs(host: Host, store: Store, b: BranchRef, links: 
       stale: publish !== null && publish.hash !== null && hash !== null && publish.hash !== hash,
     })
   }
-  await saveSnapshot(store, b.root, b.branch, { docs: ids, code: touched.code, at: await host.now() })
+  // Only grows: once the PR is merged, the base may contain the branch and its diff go empty.
+  const before = await loadSnapshot(store, b.root, b.branch)
+  const kept = [...(before?.docs ?? []), ...ids.filter(id => !before?.docs.includes(id))]
+  await saveSnapshot(store, b.root, b.branch, { docs: kept, code: touched.code || (before?.code ?? false), at: await host.now() })
   return docs.sort((x, y) => (x.kind === y.kind ? x.name.localeCompare(y.name) : x.kind === 'spec' ? -1 : 1))
 }
 
