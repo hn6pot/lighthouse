@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { baseSpecs, codeAfterPlan, docHash, fileHash, plansCitingOnBase, touchedDocs } from '../../hooks/docs/git-docs'
+import { baseSpecs, blobHash, codeAfterPlan, docHash, fileHash, plansCitingOnBase, touchedDocs } from '../../hooks/docs/git-docs'
 import { fakeHost } from '../helpers/fake-host'
 
 test('touchedDocs: added or modified docs, uncommitted ones, and whether code moved', async () => {
@@ -64,4 +64,9 @@ test('docHash: worktree file first, committed blob without a worktree', async ()
 test('fileHash: null when git cannot read the file', async () => {
   const { host } = fakeHost([])
   expect(await fileHash(host, '/nowhere/docs/specs/a.md')).toBe(null)
+})
+
+test('blobHash gives git’s blob hash of a text, without git', async () => {
+  expect(await blobHash('hello\n')).toBe('ce013625030ba8dba906f756967f9e9ca394464a')
+  expect(await blobHash('é\n')).toBe('c6003325155f475bd7c87731607525dce73be9cf') // counted in bytes, not characters
 })

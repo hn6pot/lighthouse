@@ -388,7 +388,7 @@ export async function tick(host: Host, ctx: Context, actions: Actions): Promise<
   // The repos released on demand, from the config: shown in every session, whatever it touches.
   const releases = await collectReleases(host, ctx, actions.notify)
   // Each branch's specs and plans, on its card; a failure leaves the cards without them.
-  if (ctx.docs) await refreshDocs(host, ctx.docs, ctx.id, [...ctx.repos.values()], trees, all, now).catch(() => undefined)
+  if (ctx.docs) await refreshDocs(host, ctx.docs, ctx.id, trees, all, now).catch(() => undefined)
   const withDocs = <T extends object>(x: T, root: string, branch: string | undefined): T => {
     const docs = docsOf(ctx.docs, root, branch)
     return docs.length > 0 ? { ...x, docs } : x

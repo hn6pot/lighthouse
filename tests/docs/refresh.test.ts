@@ -12,7 +12,7 @@ const world = () => fakeHost([[/diff --name-only --diff-filter=d origin\/main\.\
 test('the first pass computes each branch’s documents', async () => {
   const { host } = world()
   const docs = docsCtx()
-  await refreshDocs(host, docs, 's1', [], [tree()], [], 0)
+  await refreshDocs(host, docs, 's1', [tree()], [], 0)
   expect(docsOf(docs, '/r', 'feat/a').map(d => d.id)).toEqual(['acme/api:docs/specs/a.md'])
   expect(docsOf(docs, '/r', 'feat/z')).toEqual([])
   expect(docsOf(undefined, '/r', 'feat/a')).toEqual([])
@@ -21,7 +21,7 @@ test('the first pass computes each branch’s documents', async () => {
 test('no event and less than 30 s since the last pass: nothing recomputed', async () => {
   const { host, calls } = world()
   const docs = { ...docsCtx(), at: 0 }
-  await refreshDocs(host, docs, 's1', [], [tree()], [], DOCS_MS - 1)
+  await refreshDocs(host, docs, 's1', [tree()], [], DOCS_MS - 1)
   expect(calls.some(c => c.line.includes('diff --name-only'))).toBe(false)
 })
 
@@ -33,7 +33,7 @@ test('an event that changes something forces a pass, and the events are drained'
     [/remote get-url origin/, { stdout: 'https://github.com/acme/api.git\n' }],
   ])
   const docs: DocsContext = { ...docsCtx(), at: 0, events: [{ kind: 'write', path: '/r/docs/specs/a.md', at: 1 }] }
-  await refreshDocs(host, docs, 's1', [], [tree()], [], 1)
+  await refreshDocs(host, docs, 's1', [tree()], [], 1)
   expect(docs.events).toEqual([])
   expect(calls.some(c => c.line.includes('diff --name-only'))).toBe(true)
 })
@@ -41,7 +41,7 @@ test('an event that changes something forces a pass, and the events are drained'
 test('an event that changes nothing (a file outside any repo) waits for the 30 s pass', async () => {
   const { host, calls } = world()
   const docs: DocsContext = { ...docsCtx(), at: 0, events: [{ kind: 'write', path: '/tmp/x.txt', at: 1 }] }
-  await refreshDocs(host, docs, 's1', [], [tree()], [], 1)
+  await refreshDocs(host, docs, 's1', [tree()], [], 1)
   expect(docs.events).toEqual([])
   expect(calls.some(c => c.line.includes('diff --name-only'))).toBe(false)
 })
@@ -50,7 +50,7 @@ test('a PR pushed under another name: its snapshot is also kept under the PR’s
   const { host } = world()
   const docs = docsCtx()
   const pr = { number: 4, branch: 'feat/a-remote', localBranch: 'feat/a', path: '/r/.worktrees/feat/a' } as PrSummary
-  await refreshDocs(host, docs, 's1', [], [tree({ prs: [pr], branches: [branch('feat/a')] })], [], 0)
+  await refreshDocs(host, docs, 's1', [tree({ prs: [pr], branches: [branch('feat/a')] })], [], 0)
   expect((await loadSnapshot(docs.store, '/r', 'feat/a-remote'))?.docs).toEqual(['acme/api:docs/specs/a.md'])
 })
 
@@ -59,6 +59,6 @@ test('a merged PR marks the documents of its branch implemented', async () => {
   const docs = docsCtx()
   await saveSnapshot(docs.store, '/r', 'feat/m', { docs: ['acme/api:docs/specs/m.md'], code: true, at: 0 })
   const merged: Tracked = { key: 'acme/api#9', slug: 'acme/api', root: '/r', number: 9, branch: 'feat/m', base: 'main', stage: 'merged', updatedAt: 0 }
-  await refreshDocs(host, docs, 's1', [], [tree({ branches: [] })], [merged], 0)
+  await refreshDocs(host, docs, 's1', [tree({ branches: [] })], [merged], 0)
   expect(await implementedBy(docs.store, 'acme/api:docs/specs/m.md')).toEqual(['acme/api#9'])
 })

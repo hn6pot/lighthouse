@@ -641,7 +641,7 @@ test('an Artifact publish of a tagged page: the page is copied and recorded at t
   await clock.advance(3_000)
   await $.tool.call({ tool: 'Artifact', tool_use_id: 't1', file_path: '/tmp/s/spec.html' } as never)
   await clock.advance(10_000)
-  expect(lines).toContain('cp /tmp/s/spec.html /Users/me/.lighthouse/pages/acme/web/docs/specs/a.html')
+  expect(files['/Users/me/.lighthouse/pages/acme/web/docs/specs/a.html']).toContain('lighthouse-source')
   const record = Object.entries(files).find(([path]) => path.startsWith('/Users/me/.lighthouse/docs/pub'))
   expect(record?.[1]).toContain('https://claude.ai/artifact/abc')
 })
@@ -660,4 +660,16 @@ test('writing a file starts no tick and asks GitHub nothing: the regular tick pi
   await clock.advance(2_000)
   expect(ticks()).toBe(1)
   expect(ghCalls()).toBe(1)
+})
+
+test('an Artifact publish that failed is not recorded, even when its error names the page', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const files: Record<string, string> = { '/tmp/s/spec.html': '<meta name="lighthouse-source" content="acme/web:docs/specs/a.md">' }
+  engine(on, files, { cwd: '/w/web' })
+  on('tool.call', async () => ({ result: 'Refused: https://claude.ai/artifact/abc changed since you read it', isError: true }) as never)
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  await $.tool.call({ tool: 'Artifact', tool_use_id: 't1', file_path: '/tmp/s/spec.html' } as never)
+  await clock.advance(10_000)
+  expect(Object.keys(files).some(path => path.startsWith('/Users/me/.lighthouse/pages/') || path.startsWith('/Users/me/.lighthouse/docs/pub'))).toBe(false)
 })

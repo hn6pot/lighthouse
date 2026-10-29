@@ -14,7 +14,7 @@ import { addFolder, addPrLink, cleanNow, forgetNow, refreshConfig, tick, type Co
 import type { ReleaseRepo, TreeState } from './model'
 import { prLinks, touchedFolders } from './repos/detect'
 import { artifactUrl, publishedHtml } from './docs/artifact'
-import type { DocEvent } from './docs/events'
+import { capturePublish, type DocEvent } from './docs/events'
 import { docsStore } from './docs/records'
 import { join } from './paths'
 import { push } from './repos/git'
@@ -539,9 +539,12 @@ export const register: Register = (on, options) => {
       const at = await host.now()
       if (WRITE_TOOLS.has(tool) && typeof input.file_path === 'string') events.push({ kind: 'write', path: join(here, input.file_path, host.home), at })
       if (command !== null && GIT_COMMIT.test(command)) events.push({ kind: 'commit', folder: touched[0] ?? here, at })
+      // A failed publish may name the page in its error: only a success counts, read now as it was published.
       const html = publishedHtml(tool, input, here, host.home)
-      const url = html !== null && 'result' in result ? artifactUrl(result.result) : null
-      if (html !== null && url !== null) events.push({ kind: 'publish', html, url, at })
+      const failed = 'isError' in result && result.isError === true
+      const url = html !== null && !failed && 'result' in result ? artifactUrl(result.result) : null
+      const published = html !== null && url !== null ? await capturePublish(host, html, url, [...ctx.repos.values()], at) : null
+      if (published) events.push(published)
       if (docs) docs.events.push(...events)
     } catch {
       // never block the tool: the documents are only shown

@@ -58,3 +58,14 @@ export async function docHash(host: Host, root: string, branch: string, path: st
   const hash = r.stdout.trim()
   return r.exitCode === 0 && hash !== '' ? hash : null
 }
+
+/** Git's blob hash of a text (SHA-1 of `blob <bytes>\0` then its bytes), computed without git: the hook runs none. */
+export async function blobHash(text: string): Promise<string> {
+  const body = new TextEncoder().encode(text)
+  const head = new TextEncoder().encode(`blob ${body.length}\0`)
+  const all = new Uint8Array(head.length + body.length)
+  all.set(head)
+  all.set(body, head.length)
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-1', all))
+  return [...digest].map(b => b.toString(16).padStart(2, '0')).join('')
+}

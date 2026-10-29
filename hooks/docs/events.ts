@@ -6,7 +6,7 @@ import { originSlug, roots } from '../repos/git'
 import { DATA_DIR } from '../sessions/registry'
 import { sourceTag } from './artifact'
 import { noteCode, noteDoc, type Conversation } from './conversation'
-import { fileHash } from './git-docs'
+import { blobHash } from './git-docs'
 import { copyPath, docKind, localDocId, parseDocId, repoDocId, type DocId } from './identity'
 import { loadConversation, saveConversation, savePublish } from './records'
 
@@ -14,7 +14,8 @@ import { loadConversation, saveConversation, savePublish } from './records'
 export type DocEvent =
   | { kind: 'write'; path: string; at: number }
   | { kind: 'commit'; folder: string; at: number }
-  | { kind: 'publish'; html: string; url: string; at: number }
+  /** Taken when the page is published (`capturePublish`): the page as sent, and the hash of its Markdown then. */
+  | { kind: 'publish'; id: DocId; page: string; hash: string | null; url: string; at: number }
 
 /** The document a path is, or null when it is not a spec or plan. */
 export async function resolveDoc(host: Host, path: string): Promise<DocId | null> {
@@ -36,18 +37,27 @@ async function codeAt(host: Host, folder: string): Promise<{ root: string; branc
   return r.exitCode === 0 && branch !== '' ? { root: found.root, branch } : null
 }
 
-/** The Markdown a page was built from and its hash: in a known repo, its worktrees first, then its main folder. */
-async function markdownHash(host: Host, id: DocId, repos: readonly Repo[]): Promise<string | null> {
+/** The Markdown a page was built from, as text: in a known repo, its worktrees first, then its main folder. */
+async function markdownText(host: Host, id: DocId, repos: readonly Repo[]): Promise<string | null> {
   const parsed = parseDocId(id)
   if (parsed === null) return null
-  if ('path' in parsed) return fileHash(host, join('/', parsed.path, host.home))
+  if ('path' in parsed) return host.read(join('/', parsed.path, host.home))
   const repo = repos.find(r => r.slug === parsed.slug)
   if (!repo) return null
   for (const tree of [...repo.trees.filter(t => t !== repo.root), repo.root]) {
-    const hash = await fileHash(host, `${tree}/${parsed.rel}`)
-    if (hash !== null) return hash
+    const text = await host.read(`${tree}/${parsed.rel}`)
+    if (text !== null) return text
   }
   return null
+}
+
+/** Called by the hook right after a publish (files only, no git): the page and its Markdown as they were then; null without a source tag. */
+export async function capturePublish(host: Host, html: string, url: string, repos: readonly Repo[], at: number): Promise<DocEvent | null> {
+  const page = await host.read(html)
+  const id = page === null ? null : sourceTag(page)
+  if (page === null || id === null) return null
+  const markdown = await markdownText(host, id, repos)
+  return { kind: 'publish', id, page, hash: markdown === null ? null : await blobHash(markdown), url, at }
 }
 
 const kindOf = (id: DocId) => {
@@ -56,7 +66,7 @@ const kindOf = (id: DocId) => {
 }
 
 /** Applies the events in order: conversation links, publish records, page copies. True when something was recorded. */
-export async function applyDocEvents(host: Host, store: Store, session: string, repos: readonly Repo[], events: readonly DocEvent[]): Promise<boolean> {
+export async function applyDocEvents(host: Host, store: Store, session: string, events: readonly DocEvent[]): Promise<boolean> {
   const before = await loadConversation(store, session)
   let c: Conversation = before
   let published = false
@@ -64,16 +74,14 @@ export async function applyDocEvents(host: Host, store: Store, session: string, 
   for (const e of events) {
     try {
       if (e.kind === 'publish') {
-        const html = await host.read(e.html)
-        const id = html === null ? null : sourceTag(html)
-        const kind = id === null ? null : kindOf(id)
-        if (id === null || kind === null) continue
-        c = noteDoc(c, id, kind)
-        const hash = await markdownHash(host, id, repos)
-        const copy = copyPath(id, host.home)
+        const kind = kindOf(e.id)
+        if (kind === null) continue
+        c = noteDoc(c, e.id, kind)
+        // shortcut: only the main HTML is copied, not the files a multi-file page publishes beside it; copy those too if such pages appear.
+        const copy = copyPath(e.id, host.home)
         await host.run(['mkdir', '-p', parent(copy)])
-        await host.run(['cp', e.html, copy])
-        await savePublish(store, id, { url: e.url, at: e.at, hash, session })
+        await host.write(copy, e.page)
+        await savePublish(store, e.id, { url: e.url, at: e.at, hash: e.hash, session })
         published = true
         continue
       }

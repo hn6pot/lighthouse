@@ -1,6 +1,6 @@
 // At the tick: apply what the hook noted, then work out every shown branch's documents, at most every 30 s.
 import type { Host, Store } from '../host'
-import type { BranchDoc, Repo, TreeState, Tracked } from '../model'
+import type { BranchDoc, TreeState, Tracked } from '../model'
 import { branchDocs, markMerged, type BranchRef } from './collect'
 import { applyDocEvents, type DocEvent } from './events'
 import { allLinks, loadSnapshot, saveSnapshot } from './records'
@@ -13,10 +13,10 @@ export type DocsContext = { store: Store; events: DocEvent[]; at?: number; byBra
 const keyOf = (root: string, branch: string) => `${root}@${branch}`
 
 /** Applies the noted events, then recomputes every shown branch's documents when an event came or DOCS_MS passed; marks merged PRs. */
-export async function refreshDocs(host: Host, docs: DocsContext, session: string, repos: readonly Repo[], trees: readonly TreeState[], tracked: readonly Tracked[], now: number): Promise<void> {
+export async function refreshDocs(host: Host, docs: DocsContext, session: string, trees: readonly TreeState[], tracked: readonly Tracked[], now: number): Promise<void> {
   const events = docs.events.splice(0)
   // Only an event that recorded something skips the wait: code writes mostly link nothing new.
-  const changed = events.length > 0 && (await applyDocEvents(host, docs.store, session, repos, events))
+  const changed = events.length > 0 && (await applyDocEvents(host, docs.store, session, events))
   if (!changed && docs.at !== undefined && now - docs.at < DOCS_MS) return
   docs.at = now
 
