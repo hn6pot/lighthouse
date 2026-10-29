@@ -7,7 +7,7 @@ test('touchedDocs: added or modified docs, uncommitted ones, and whether code mo
     [/diff --name-only --diff-filter=d origin\/main\.\.\.feat\/a/, { stdout: 'docs/specs/a.md\nsrc/x.ts\n' }],
     [/status --porcelain --untracked-files=all/, { stdout: '?? docs/plans/a.md\n M docs/specs/a.md\n' }],
   ])
-  expect(await touchedDocs(host, '/r', 'main', 'feat/a', '/r/.worktrees/a')).toEqual({ docs: ['docs/specs/a.md', 'docs/plans/a.md'], code: true })
+  expect(await touchedDocs(host, '/r', 'main', 'feat/a', '/r/.worktrees/a')).toEqual({ docs: ['docs/specs/a.md', 'docs/plans/a.md'], code: true }) // src/x.ts is committed
 })
 
 test('touchedDocs: a docs-only branch has no code; deletions are left out of the diff', async () => {
@@ -16,12 +16,12 @@ test('touchedDocs: a docs-only branch has no code; deletions are left out of the
   expect(calls[0].line).toBe('git -C /r diff --name-only --diff-filter=d origin/main...docs/a')
 })
 
-test('touchedDocs: uncommitted code in the worktree counts as code; a renamed doc keeps its new path', async () => {
+test('touchedDocs: uncommitted code is not code (only what can be merged counts); a renamed doc keeps its new path', async () => {
   const { host } = fakeHost([
     [/diff --name-only/, { stdout: '' }],
-    [/status --porcelain/, { stdout: 'R  docs/specs/old.md -> docs/specs/new.md\n M src/y.ts\n' }],
+    [/status --porcelain/, { stdout: 'R  docs/specs/old.md -> docs/specs/new.md\n M src/y.ts\n?? notes.txt\n' }],
   ])
-  expect(await touchedDocs(host, '/r', 'main', 'feat/a', '/r/.worktrees/a')).toEqual({ docs: ['docs/specs/new.md'], code: true })
+  expect(await touchedDocs(host, '/r', 'main', 'feat/a', '/r/.worktrees/a')).toEqual({ docs: ['docs/specs/new.md'], code: false })
 })
 
 test('touchedDocs: git failing gives nothing', async () => {

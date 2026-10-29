@@ -13,17 +13,18 @@ const git = (host: Host, folder: string, ...args: string[]) => host.run(['git', 
 const lines = (text: string) => text.split('\n').map(l => l.trim()).filter(l => l !== '')
 const isDoc = (rel: string) => docKind(rel) !== null
 
-/** Documents the branch adds or modifies against `origin/<base>` (deletions excluded), plus uncommitted ones in its worktree; `code`: it touches a file outside specs/plans. Paths relative to the repo. */
+/** Documents the branch adds or modifies against `origin/<base>` (deletions excluded), plus uncommitted ones in its worktree; `code`: its commits touch a file outside specs/plans. Paths relative to the repo. */
 export async function touchedDocs(host: Host, root: string, base: string, branch: string, path: string | null): Promise<{ docs: string[]; code: boolean }> {
   const diff = await git(host, root, 'diff', '--name-only', '--diff-filter=d', `origin/${base}...${branch}`)
-  const files = diff.exitCode === 0 ? lines(diff.stdout) : []
+  const committed = diff.exitCode === 0 ? lines(diff.stdout) : []
+  const docs = committed.filter(isDoc)
   if (path !== null) {
     const status = await git(host, path, '--no-optional-locks', 'status', '--porcelain', '--untracked-files=all')
     // `XY path`, or `XY old -> new` for a rename; a deleted file is not a document to show.
-    if (status.exitCode === 0) for (const l of status.stdout.split('\n').filter(x => x.length > 3 && !x.slice(0, 2).includes('D'))) files.push(l.slice(3).split(' -> ').pop() ?? '')
+    if (status.exitCode === 0) for (const l of status.stdout.split('\n').filter(x => x.length > 3 && !x.slice(0, 2).includes('D'))) docs.push(l.slice(3).split(' -> ').pop() ?? '')
   }
-  const unique = [...new Set(files.filter(f => f !== ''))]
-  return { docs: unique.filter(isDoc), code: unique.some(f => !isDoc(f)) }
+  // Code is what the branch can merge: committed only, so a stray file never makes a docs-only PR count as code.
+  return { docs: [...new Set(docs.filter(isDoc))], code: committed.some(f => !isDoc(f)) }
 }
 
 /** Spec paths on `origin/<base>` (candidates for a citation by file name). */
