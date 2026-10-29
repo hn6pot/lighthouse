@@ -18,12 +18,14 @@ const cites = (text: string, ref: string) => text.includes(ref) || text.includes
 
 type Located = { ref: string; inRepo: boolean; file: string | null; text: string | null }
 
-export async function branchDocs(host: Host, store: Store, b: BranchRef, links: readonly ConversationLink[]): Promise<BranchDoc[]> {
+/** `extra`: documents known from elsewhere (a merged PR's snapshot, once its diff is empty or its branch gone). */
+export async function branchDocs(host: Host, store: Store, b: BranchRef, links: readonly ConversationLink[], extra: readonly DocId[] = []): Promise<BranchDoc[]> {
   const { slug } = b
   const touched = slug === null ? { docs: [], code: false } : await touchedDocs(host, b.root, b.base, b.branch, b.path)
   const ids: DocId[] = []
   const add = (id: DocId) => void (ids.includes(id) ? undefined : ids.push(id))
   if (slug !== null) for (const rel of touched.docs) add(repoDocId(slug, rel))
+  for (const id of extra) add(id)
   // The conversation's links: documents outside a repo, or of this same repo.
   const mine = links.filter(l => l.root === b.root && l.branch === b.branch)
   for (const l of mine) {

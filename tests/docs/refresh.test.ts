@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import { DOCS_MS, docsOf, refreshDocs, type DocsContext } from '../../hooks/docs/refresh'
-import { implementedBy, loadSnapshot, saveSnapshot } from '../../hooks/docs/records'
+import { allLinks, implementedBy, loadSnapshot, saveConversation, saveSnapshot } from '../../hooks/docs/records'
 import type { LocalBranch, PrSummary, TreeState, Tracked } from '../../hooks/model'
 import { fakeHost } from '../helpers/fake-host'
 
@@ -61,4 +61,26 @@ test('a merged PR marks the documents of its branch implemented', async () => {
   const merged: Tracked = { key: 'acme/api#9', slug: 'acme/api', root: '/r', number: 9, branch: 'feat/m', base: 'main', stage: 'merged', updatedAt: 0 }
   await refreshDocs(host, docs, 's1', [tree({ branches: [] })], [merged], 0)
   expect(await implementedBy(docs.store, 'acme/api:docs/specs/m.md')).toEqual(['acme/api#9'])
+})
+
+const SPEC_M = 'acme/api:docs/specs/m.md'
+const trackedAt = (stage: Tracked['stage']): Tracked => ({ key: 'acme/api#9', slug: 'acme/api', root: '/r', number: 9, branch: 'feat/m', base: 'main', stage, updatedAt: 0 })
+
+test('a merged card keeps its documents from the snapshot once its branch is gone', async () => {
+  const { host } = world()
+  const docs = docsCtx()
+  await saveSnapshot(docs.store, '/r', 'feat/m', { docs: [SPEC_M], code: true, at: 0 })
+  await refreshDocs(host, docs, 's1', [tree({ branches: [] })], [trackedAt('deployed')], 0)
+  expect(docsOf(docs, '/r', 'feat/m').map(d => [d.id, d.state])).toEqual([[SPEC_M, 'implemented']])
+})
+
+test('once its PR is cleaned up, a branch name forgets its links and snapshot: a new branch of that name starts empty', async () => {
+  const { host } = world()
+  const docs = docsCtx()
+  await saveSnapshot(docs.store, '/r', 'feat/m', { docs: [SPEC_M], code: true, at: 0 })
+  await saveConversation(docs.store, 's1', { active: [], specs: [], links: [{ doc: SPEC_M, root: '/r', branch: 'feat/m', at: 0 }, { doc: SPEC_M, root: '/r', branch: 'feat/a', at: 0 }] })
+  await refreshDocs(host, docs, 's1', [tree({ branches: [] })], [trackedAt('cleaned')], 0)
+  expect(await implementedBy(docs.store, SPEC_M)).toEqual(['acme/api#9'])
+  expect(await loadSnapshot(docs.store, '/r', 'feat/m')).toBe(null)
+  expect((await allLinks(docs.store)).map(l => l.branch)).toEqual(['feat/a'])
 })

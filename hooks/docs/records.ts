@@ -58,3 +58,19 @@ export async function markImplemented(store: Store, id: DocId, prKey: string): P
   const prs = await implementedBy(store, id)
   if (!prs.includes(prKey)) await store.set(`impl:${id}`, [...prs, prKey])
 }
+
+/** Once a PR is cleaned up, its branch name may be reused: drop the links and snapshot that branch had until then. */
+export async function forgetBranches(store: Store, cleaned: readonly { root: string; branch: string; at: number }[]): Promise<void> {
+  if (cleaned.length === 0) return
+  const gone = (l: { root: string; branch: string; at: number }) => cleaned.some(c => c.root === l.root && c.branch === l.branch && l.at <= c.at)
+  for (const c of cleaned) {
+    const snap = await loadSnapshot(store, c.root, c.branch)
+    if (snap && snap.at <= c.at) await store.delete(`snap:${c.root}@${c.branch}`)
+  }
+  for (const key of (await store.keys()).filter(k => k.startsWith('conv:'))) {
+    const session = key.slice('conv:'.length)
+    const conv = await loadConversation(store, session)
+    const links = conv.links.filter(l => !gone(l))
+    if (links.length !== conv.links.length) await saveConversation(store, session, { ...conv, links })
+  }
+}

@@ -3,7 +3,7 @@ import type { Host, Store } from '../host'
 import type { BranchDoc, TreeState, Tracked } from '../model'
 import { branchDocs, markMerged, type BranchRef } from './collect'
 import { applyDocEvents, type DocEvent } from './events'
-import { allLinks, loadSnapshot, saveSnapshot } from './records'
+import { allLinks, forgetBranches, loadSnapshot, saveSnapshot } from './records'
 
 export const DOCS_MS = 30_000
 
@@ -29,6 +29,9 @@ export async function refreshDocs(host: Host, docs: DocsContext, session: string
     }
   }
 
+  // A cleaned-up PR's branch name may be reused: what it had until then goes.
+  await forgetBranches(docs.store, tracked.filter(s => s.stage === 'cleaned').map(s => ({ root: s.root, branch: s.branch, at: s.updatedAt }))).catch(() => undefined)
+
   const links = await allLinks(docs.store)
   const byBranch = new Map<string, BranchDoc[]>()
   for (const tree of trees) {
@@ -50,6 +53,19 @@ export async function refreshDocs(host: Host, docs: DocsContext, session: string
       } catch {
         // kept under its local name only
       }
+    }
+  }
+  // A merged card keeps its documents until it goes: from its snapshot, once its diff is empty or its branch gone.
+  for (const s of tracked) {
+    const tree = trees.find(x => x.root === s.root)
+    if (!tree || s.stage === 'open' || s.stage === 'cleaned') continue
+    try {
+      const snap = await loadSnapshot(docs.store, s.root, s.branch)
+      const path = tree.branches.find(b => b.name === s.branch)?.path ?? null
+      const ref: BranchRef = { root: s.root, slug: tree.slug, base: s.base, branch: s.branch, path }
+      byBranch.set(keyOf(s.root, s.branch), await branchDocs(host, docs.store, ref, links, snap?.docs ?? []))
+    } catch {
+      // the card shows no documents
     }
   }
   docs.byBranch = byBranch
