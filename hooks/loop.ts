@@ -15,6 +15,7 @@ import { liveSessions } from './sessions/registry'
 import { commitRuns, myLogin, myOpenPrs, prDetail, summarizePr } from './github/prs'
 import { reviewRequests } from './github/reviews'
 import { collectReleases } from './release/collect'
+import { docsOf, refreshDocs, type DocsContext } from './docs/refresh'
 import type { Host } from './host'
 import type { Texts } from './i18n'
 import type { Owner, PrSummary, ReleaseRepo, Repo, ReviewRequest, TreeState, Tracked } from './model'
@@ -45,6 +46,8 @@ export type Context = {
   reviewsMaxAge?: number
   /** The last list of PRs to review gh gave: kept while gh fails. */
   reviews?: ReviewRequest[]
+  /** The branches' specs and plans; absent, they are not shown. */
+  docs?: DocsContext
 }
 export type Actions = {
   notify: (key: string, text: string) => Promise<void>
@@ -384,7 +387,18 @@ export async function tick(host: Host, ctx: Context, actions: Actions): Promise<
   const reviews = (ctx.reviews ?? []).map(r => ({ ...r, facts: reviewFacts(r, now, ctx.t) }))
   // The repos released on demand, from the config: shown in every session, whatever it touches.
   const releases = await collectReleases(host, ctx, actions.notify)
-  await actions.publish(shown, ownedEvents, reviews, releases)
+  // Each branch's specs and plans, on its card; a failure leaves the cards without them.
+  if (ctx.docs) await refreshDocs(host, ctx.docs, ctx.id, trees, all, now).catch(() => undefined)
+  const withDocs = <T extends object>(x: T, root: string, branch: string | undefined): T => {
+    const docs = docsOf(ctx.docs, root, branch)
+    return docs.length > 0 ? { ...x, docs } : x
+  }
+  const documented = shown.map(tree => ({
+    ...tree,
+    prs: tree.prs.map(p => withDocs(p, tree.root, p.localBranch)),
+    branches: tree.branches.map(b => withDocs(b, tree.root, b.name)),
+  }))
+  await actions.publish(documented, ownedEvents.map(s => withDocs(s, s.root, s.branch)), reviews, releases)
 }
 
 export async function cleanNow(host: Host, ctx: Context, key: string): Promise<string> {

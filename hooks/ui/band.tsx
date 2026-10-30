@@ -17,6 +17,8 @@ export type Buttons = {
   tidy: (root: string) => Promise<void> | void
   /** Opens another session in the Desktop. */
   openSession: (desktopId: string) => Promise<void> | void
+  /** Opens a local file (a page copy or a Markdown) with the system's `open`. */
+  openPath: (path: string) => Promise<void> | void
   /** Runs a tick now, asking GitHub and rereading the base. */
   refresh: () => void
   merge: (root: string, number: number) => Promise<void> | void

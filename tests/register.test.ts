@@ -631,3 +631,45 @@ test('releases pane: a title longer than the pane unfolds whole on hover', { opt
   expect(await ui.findAll({ type: 'Text', text: title })).toHaveLength(2)
   expect(await ui.findAll({ type: 'Text', text: 'two' })).toHaveLength(1)
 })
+
+test('an Artifact publish of a tagged page: the page is copied and recorded at the next tick', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const files: Record<string, string> = { '/tmp/s/spec.html': '<meta name="lighthouse-source" content="acme/web:docs/specs/a.md">' }
+  const lines = engine(on, files, { cwd: '/w/web' })
+  on('tool.call', async () => ({ result: 'Published /tmp/s/spec.html at https://claude.ai/artifact/abc (Version 1)' }) as never)
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  await $.tool.call({ tool: 'Artifact', tool_use_id: 't1', file_path: '/tmp/s/spec.html' } as never)
+  await clock.advance(10_000)
+  expect(files['/Users/me/.lighthouse/pages/acme/web/docs/specs/a.html']).toContain('lighthouse-source')
+  const record = Object.entries(files).find(([path]) => path.startsWith('/Users/me/.lighthouse/docs/pub'))
+  expect(record?.[1]).toContain('https://claude.ai/artifact/abc')
+})
+
+test('writing a file starts no tick and asks GitHub nothing: the regular tick picks it up', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const lines = engine(on, {}, { cwd: '/w/web' })
+  on('tool.call', async () => ({ result: 'ok' }) as never)
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  const ticks = () => lines.filter(l => / for-each-ref /.test(l)).length
+  const ghCalls = () => lines.filter(l => /^gh pr list/.test(l)).length
+  expect(ticks()).toBe(1)
+  await $.tool.call({ tool: 'Edit', tool_use_id: 't1', file_path: '/w/web/src/a.ts' } as never)
+  await $.tool.call({ tool: 'Write', tool_use_id: 't2', file_path: '/w/web/docs/specs/a.md' } as never)
+  await clock.advance(2_000)
+  expect(ticks()).toBe(1)
+  expect(ghCalls()).toBe(1)
+})
+
+test('an Artifact publish that failed is not recorded, even when its error names the page', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const files: Record<string, string> = { '/tmp/s/spec.html': '<meta name="lighthouse-source" content="acme/web:docs/specs/a.md">' }
+  engine(on, files, { cwd: '/w/web' })
+  on('tool.call', async () => ({ result: 'Refused: https://claude.ai/artifact/abc changed since you read it', isError: true }) as never)
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  await $.tool.call({ tool: 'Artifact', tool_use_id: 't1', file_path: '/tmp/s/spec.html' } as never)
+  await clock.advance(10_000)
+  expect(Object.keys(files).some(path => path.startsWith('/Users/me/.lighthouse/pages/') || path.startsWith('/Users/me/.lighthouse/docs/pub'))).toBe(false)
+})

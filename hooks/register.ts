@@ -13,11 +13,15 @@ import { NO_CONFIG } from './config'
 import { addFolder, addPrLink, cleanNow, forgetNow, refreshConfig, tick, type Context } from './loop'
 import type { ReleaseRepo, TreeState } from './model'
 import { prLinks, touchedFolders } from './repos/detect'
+import { artifactUrl, publishedHtml } from './docs/artifact'
+import { capturePublish, toolDocEvents, type DocEvent } from './docs/events'
+import { docsStore } from './docs/records'
 import { push } from './repos/git'
 import { DATA_DIR, forgetSession, record } from './sessions/registry'
 import { drawBand, type Buttons } from './ui/band'
 import { actionPrompt, branchPrompt, CHECK_FRAMES, tidyPrompt } from './ui/lines'
 import { notifyOnce, sendNotification } from './ui/notify'
+import { isOpenable } from './ui/doc-lines'
 import { drawPane, PANE } from './ui/pane'
 import { drawReleasePane } from './ui/release-pane'
 import { launchRelease } from './release/launch'
@@ -230,6 +234,11 @@ const buttons = ($: EngineInterface, state: State): Buttons => {
       if (!state.host || !/^local_[\w-]+$/.test(desktopId)) return
       return state.host.run(['open', `claude://claude.ai/epitaxy/${desktopId}`]).then(() => undefined, fail)
     },
+    openPath: path => {
+      // A page copy or a Markdown the tick found: never anything else.
+      if (!state.host || !isOpenable(path)) return
+      return state.host.run(['open', path]).then(() => undefined, fail)
+    },
     refresh: () =>
       void (async () => {
         // At once, asking GitHub and rereading the base; the icon says it is on it until the tick has drawn.
@@ -357,7 +366,7 @@ export const register: Register = (on, options) => {
     await $.command.register({ name: 'release', description: t.releaseCommandDescription })
     const host = (state.host = await hostFrom($))
     const cwd = await $.session.cwd()
-    const ctx = (state.ctx = { id: await $.session.id(), cwd, repos: new Map(), lastFetch: new Map(), logins: new Map(), t, config: NO_CONFIG } as Context)
+    const ctx = (state.ctx = { id: await $.session.id(), cwd, repos: new Map(), lastFetch: new Map(), logins: new Map(), t, config: NO_CONFIG, docs: { store: docsStore(host), events: [], byBranch: new Map() } } as Context)
     state.folders.add(cwd) // resolved at the first tick, if there is an interface
 
     /** The first prompt, on one line and cut short, once there is one. */
@@ -457,7 +466,7 @@ export const register: Register = (on, options) => {
         running = false
         if (replay) {
           replay = false
-          void runTick()
+          void runTick().catch(() => undefined)
         } else {
           await update($, REFRESHING, () => false)
         }
@@ -470,11 +479,11 @@ export const register: Register = (on, options) => {
       scheduled = true
       $.clock.after(AFTER_COMMAND_MS, () => {
         scheduled = false
-        void runTick()
+        void runTick().catch(() => undefined)
       })
     }
-    $.clock.after(3_000, () => void runTick())
-    $.clock.every(TICK_MS, () => void runTick())
+    $.clock.after(3_000, () => void runTick().catch(() => undefined))
+    $.clock.every(TICK_MS, () => void runTick().catch(() => undefined))
     $.clock.every(HEARTBEAT_MS, () => void heartbeat().catch(() => undefined))
     return next(e)
   })
@@ -515,6 +524,25 @@ export const register: Register = (on, options) => {
         if (s && DEPLOY_STAGES.includes(s.stage)) await save(host.store, moveTo(s, 'deployed', now))
       }
       state.rerun()
+    }
+
+    // What touches the specs and plans: noted here, applied by the regular tick (no git here, and no extra tick: a write must not make GitHub be asked again).
+    try {
+      const docs = ctx.docs
+      const tool = String(e.tool)
+      const at = await host.now()
+      // A pane agent fixes another piece of work (CI, comments, conflicts): its files are not this conversation's.
+      const paneAgent = agent !== undefined
+      const events: DocEvent[] = toolDocEvents({ tool, input, command, folder: touched[0] ?? here, here, home: host.home, at, paneAgent })
+      // A failed publish may name the page in its error: only a success counts, read now as it was published.
+      const html = publishedHtml(tool, input, here, host.home)
+      const failed = 'isError' in result && result.isError === true
+      const url = html !== null && !failed && 'result' in result ? artifactUrl(result.result) : null
+      const published = html !== null && url !== null ? await capturePublish(host, html, url, [...ctx.repos.values()], at) : null
+      if (published && !paneAgent) events.push(published)
+      if (docs) docs.events.push(...events)
+    } catch {
+      // never block the tool: the documents are only shown
     }
 
     if (command !== null) {

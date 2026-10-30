@@ -44,6 +44,28 @@ Un dernier cadre, **À relire**, liste les PR ouvertes où ta relecture est dema
 
 Avec le mod [intent](https://github.com/hn6pot/intent) activé, chacune d'elles, et chacune de tes propres PR, a un bouton **Relire avec intent** : il lance `/intent <lien de la PR>`, qui ouvre la page de revue d'intent sur cette PR (le pourquoi de chaque changement). Un mod ne peut pas en importer un autre : la commande slash est le seul lien entre les deux ; sans intent, le bouton n'apparaît pas.
 
+### Specs et plans
+
+Chaque carte de PR et chaque ligne de branche liste ses **specs et plans** : les fichiers Markdown sous un dossier nommé `specs` ou `plans` (`docs/specs/x.md`, `docs/superpowers/plans/y.md`), dans le dépôt ou hors de tout dépôt (`~/claude-outputs/acme/docs/specs/z.md`). Repliés par défaut en une ligne courte, la page de la spec et un bouton qui déplie ; dépliés, une ligne par document, les specs d'abord :
+
+```
+● Spec ↗  ▼ Docs (2)
+▤ Spec rate-limiting  approuvée  Page ↗
+▤ Plan rate-limiting  en cours  Page ↗  ⚠ pas à jour
+```
+
+- **Lesquels.** Les documents que la branche ajoute ou modifie (par rapport à sa base, plus ceux non commités dans son worktree) ; ceux écrits ou publiés dans la conversation qui a ensuite écrit du code dans le worktree de la branche, jusqu'à ce que cette conversation commence une nouvelle spec ; et les specs que ces plans citent, par chemin ou nom de fichier.
+- **Où ils en sont**, déduit, jamais écrit dans le document. Une spec est un *brouillon*, *approuvée* dès qu'un plan la cite, *implémentée* quand tous les plans qui la citent le sont (ou, sans plan, quand une PR qui touche du code est fusionnée). Un plan est un *brouillon*, *en cours* dès que du code le suit sur la branche, *implémenté* quand sa PR est fusionnée. Une PR fusionnée qui ne touche que des dossiers `specs` ou `plans` ne compte pas. Chaque état a sa couleur : un brouillon (qui attend ton accord) en jaune, en cours en jaune aussi, approuvé et implémenté en vert ; la ligne repliée commence par une pastille de la couleur de sa spec.
+- **Page ↗** ouvre la page claude.ai du document. Lighthouse la connaît quand Claude publie, avec l'outil Artifact, une page HTML dont le `<head>` nomme son Markdown :
+
+  ```html
+  <meta name="lighthouse-source" content="acme/api:docs/specs/2026-10-29-rate-limiting-design.md">
+  ```
+
+  `owner/repo:chemin` pour un document dans un dépôt, `~/chemin` pour un document hors dépôt. Lighthouse n'ajoute jamais cette balise : demande-la dans tes propres règles de publication. Une page sans elle n'est reliée à rien.
+- **⚠ pas à jour** : le Markdown a changé depuis la dernière publication de sa page.
+- Un seul bouton par ligne : **Page ↗**, sinon **Copie** (la copie locale de la page), sinon **Markdown** (le fichier lui-même). Lighthouse garde une copie de la dernière publication de chaque page dans `~/.lighthouse/pages/`, au cas où la page serait perdue.
+
 ### Releases
 
 Un dépôt avec une règle `release` (voir Configuration) ne se déploie pas après chaque fusion. Ses PR fusionnées attendent, et son worktree et sa branche sont nettoyés tout de suite. La ligne de résumé les compte (« 4 à sortir »). Le panneau **Releases** s'ouvre tout seul, une fois, dans une conversation qui travaille dans un dépôt en mode release avec quelque chose à sortir (plus jamais une fois que tu l'as fermé ; **`/release`** le rouvre, depuis n'importe quelle conversation). Un cadre par dépôt en mode release :
@@ -187,8 +209,10 @@ Tout est sous `~/.lighthouse/` :
 | `locks/` | Les verrous des dépôts. |
 | `logs/` | Les journaux des déploiements et des releases lancés par le mod. |
 | `releases/` | La dernière release de chaque dépôt en mode release : ce qui a été lancé (un JSON, qui sert aussi de verrou), son script, et son code de sortie une fois finie. |
+| `docs/` | Ce que le mod sait des specs et plans : chaque page publiée (lien, date, empreinte de son Markdown), les liens des conversations aux branches, les documents de chaque branche. |
+| `pages/` | La copie locale de chaque page publiée, la dernière. |
 
-À part `config.json`, supprimer ce dossier est sans danger, sauf pendant un déploiement ou une release. Il est recréé au besoin, mais les PR déjà fusionnées ne seront plus suivies.
+À part `config.json`, supprimer ce dossier est sans danger, sauf pendant un déploiement ou une release. Il est recréé au besoin, mais les PR déjà fusionnées ne seront plus suivies, et les liens et copies des pages sont perdus (republier une page ramène son lien).
 
 ## Développer
 

@@ -1,5 +1,16 @@
 // Self-contained contract (the validator refuses any import): these shapes copy
 // TreeState and Tracked from hooks/model.ts, which stays the reference.
+export type LighthouseDoc = {
+  id: string
+  kind: 'spec' | 'plan'
+  name: string
+  state: 'draft' | 'approved' | 'in-progress' | 'implemented'
+  file: string | null
+  page?: string
+  copy?: string
+  stale: boolean
+}
+
 export type LighthousePrSummary = {
   number: number
   title: string
@@ -22,6 +33,7 @@ export type LighthousePrSummary = {
   deletions?: number
   files?: number
   facts?: { text: string; stale: boolean }
+  docs?: LighthouseDoc[]
 }
 
 export type LighthouseTree = {
@@ -48,6 +60,7 @@ export type LighthouseBranch = {
   upstream?: string
   tip?: string
   aheadOfUpstream?: number
+  docs?: LighthouseDoc[]
 }
 
 export type LighthouseTracked = {
@@ -81,6 +94,7 @@ export type LighthouseTracked = {
   handledBy?: string
   handledAt?: number
   handled?: 'here' | 'other'
+  docs?: LighthouseDoc[]
 }
 
 export type LighthouseReview = {

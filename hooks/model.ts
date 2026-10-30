@@ -1,5 +1,12 @@
 // Domain types: a repo, the state of a working tree, a tracked PR.
 
+/** A spec or a plan: a Markdown file under a `specs` or `plans` folder. */
+export type DocKind = 'spec' | 'plan'
+/** Where a document stands, deduced from git and the PRs (never written in it). */
+export type DocState = 'draft' | 'approved' | 'in-progress' | 'implemented'
+/** A spec or plan as a card shows it. `file`: the Markdown in the branch's checkout, null when absent there. */
+export type BranchDoc = { id: string; kind: DocKind; name: string; state: DocState; file: string | null; page?: string; copy?: string; stale: boolean }
+
 /** A tracked repo: its root (the main folder) and `owner/repo`, null without a GitHub origin. */
 export type Repo = { root: string; slug: string | null; trees: string[] }
 
@@ -45,6 +52,8 @@ export type LocalBranch = {
   stackedOn?: number
   /** Set by the tick, from the sessions' registry. */
   owner?: Owner
+  /** Its specs and plans, set by the tick. */
+  docs?: BranchDoc[]
 }
 
 /** An open PR where my review is requested, in any repo. */
@@ -97,6 +106,8 @@ export type PrSummary = {
   files?: number
   /** Age and size, worded at the tick (so the pane redraws when they change). */
   facts?: { text: string; stale: boolean }
+  /** The specs and plans of its local branch, set by the tick. */
+  docs?: BranchDoc[]
 }
 
 export type Stage =
@@ -129,6 +140,8 @@ export type Tracked = {
   handled?: 'here' | 'other'
   /** Whose it is, set by the tick for the pane (never saved). */
   owner?: Owner
+  /** The specs and plans of its branch, set by the tick for the pane (never saved). */
+  docs?: BranchDoc[]
   /** How a repo without a rule deploys, as inferred from its files. */
   note?: string
   /** The PR's title, to show it once merged. */

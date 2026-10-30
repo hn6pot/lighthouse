@@ -39,3 +39,9 @@ test('French stays the default wording', () => {
     ].join('\n'),
   )
 })
+
+test('document texts, in both languages', () => {
+  expect(texts('en').doc.outOfDate).toBe('⚠ out of date')
+  expect(texts('fr').doc.outOfDate).toBe('⚠ pas à jour')
+  expect([texts('en').doc.page, texts('en').doc.copy, texts('fr').doc.copy, texts('fr').doc.markdown]).toEqual(['Page ↗', 'Copy', 'Copie', 'Markdown'])
+})
