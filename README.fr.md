@@ -46,9 +46,10 @@ Avec le mod [intent](https://github.com/hn6pot/intent) activé, chacune d'elles,
 
 ### Specs et plans
 
-Chaque carte de PR et chaque ligne de branche liste ses **specs et plans** : les fichiers Markdown sous un dossier nommé `specs` ou `plans` (`docs/specs/x.md`, `docs/superpowers/plans/y.md`), dans le dépôt ou hors de tout dépôt (`~/claude-outputs/acme/docs/specs/z.md`). Une ligne chacun, les specs d'abord, quatre au plus :
+Chaque carte de PR et chaque ligne de branche liste ses **specs et plans** : les fichiers Markdown sous un dossier nommé `specs` ou `plans` (`docs/specs/x.md`, `docs/superpowers/plans/y.md`), dans le dépôt ou hors de tout dépôt (`~/claude-outputs/acme/docs/specs/z.md`). Repliés par défaut en une ligne courte, la page de la spec et un bouton qui déplie ; dépliés, une ligne par document, les specs d'abord :
 
 ```
+Spec ↗  ▼ Docs (2)
 ▤ Spec rate-limiting · approuvée   Page ↗  Copie
 ▤ Plan rate-limiting · en cours   Page ↗  ⚠ pas à jour  Copie
 ```

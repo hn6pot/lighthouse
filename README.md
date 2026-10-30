@@ -45,9 +45,10 @@ With the [intent](https://github.com/hn6pot/intent) mod enabled, each of them, a
 
 ### Specs and plans
 
-Each PR card and each branch line lists its **specs and plans**: Markdown files under a folder named `specs` or `plans` (`docs/specs/x.md`, `docs/superpowers/plans/y.md`), in the repo or outside any repo (`~/claude-outputs/acme/docs/specs/z.md`). One line each, specs first, four at most:
+Each PR card and each branch line lists its **specs and plans**: Markdown files under a folder named `specs` or `plans` (`docs/specs/x.md`, `docs/superpowers/plans/y.md`), in the repo or outside any repo (`~/claude-outputs/acme/docs/specs/z.md`). Folded by default to one short line, the spec's page and a toggle; unfolded, one line per document, specs first:
 
 ```
+Spec ↗  ▼ Docs (2)
 ▤ Spec rate-limiting · approved   Page ↗  Copy
 ▤ Plan rate-limiting · in progress   Page ↗  ⚠ out of date  Copy
 ```

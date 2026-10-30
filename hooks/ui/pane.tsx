@@ -116,7 +116,7 @@ export function drawPane(
           </Box>
         )}
         {progress(prProgress(p, t), key)}
-        {drawDocs(ui, p.docs, key, buttons, busy, t)}
+        {drawDocs(ui, p.docs, key, expanded[`docs:${key}`] ?? false, buttons, busy, t)}
         {p.facts?.text ? <Text dimColor={!p.facts.stale} color={p.facts.stale ? 'warning' : undefined} wrap="truncate-end">{`${p.facts.stale ? '⚠ ' : ''}${p.facts.text}`}</Text> : null}
         <Box columnGap={2} flexWrap="wrap">
           {prChips(p, t).map(x => (
@@ -161,7 +161,7 @@ export function drawPane(
             <Text key={`${key}-${x.text}`} color={x.color}>● {x.text}</Text>
           ))}
         </Box>
-        {drawDocs(ui, b.docs, key, buttons, busy, t)}
+        {drawDocs(ui, b.docs, key, expanded[`docs:${key}`] ?? false, buttons, busy, t)}
         {inProgress(texts, key)}
         {actions.length > 0 && (
           <Box gap={1}>
@@ -203,7 +203,7 @@ export function drawPane(
           ))}
         </Box>
         {progress(trackedProgress(s, t), `ev-${s.key}`)}
-        {drawDocs(ui, s.docs, `ev-${s.key}`, buttons, busy, t)}
+        {drawDocs(ui, s.docs, `ev-${s.key}`, expanded[`docs:ev-${s.key}`] ?? false, buttons, busy, t)}
         {which.length > 0 && (
           <Box gap={1}>
             {which.includes('deploy') && <Button key={`p-deploy-${s.key}`} label={busy(`p-deploy-${s.key}`, t.button.deploy)} onPress={() => buttons.run(`p-deploy-${s.key}`, () => buttons.deploy(s.key))} />}

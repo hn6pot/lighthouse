@@ -109,7 +109,8 @@ const fr = {
     copy: 'Copie',
     markdown: 'Markdown',
     outOfDate: '⚠ pas à jour',
-    more: (n: number) => `+${n} autres`,
+    specPage: 'Spec ↗',
+    toggle: (n: number, open: boolean) => `${open ? '▼' : '▶'} Docs (${n})`,
   },
 
   /** The PRs where my review is requested. */
@@ -360,7 +361,8 @@ const en: Texts = {
     copy: 'Copy',
     markdown: 'Markdown',
     outOfDate: '⚠ out of date',
-    more: (n: number) => `+${n} more`,
+    specPage: 'Spec ↗',
+    toggle: (n: number, open: boolean) => `${open ? '▼' : '▶'} Docs (${n})`,
   },
 
   review: {
