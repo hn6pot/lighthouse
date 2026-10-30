@@ -1,15 +1,22 @@
 import { expect, test } from 'claude-code/testing'
 import { texts } from '../../hooks/i18n'
 import type { BranchDoc } from '../../hooks/model'
-import { docLabel, docOpener, docSummary, isOpenable } from '../../hooks/ui/doc-lines'
+import { docColor, docOpener, docSummary, docTitle, isOpenable } from '../../hooks/ui/doc-lines'
 
-test('docLabel names the kind, the name and the state, in both languages', () => {
+test('docTitle names the kind and the name; the state is drawn apart, in its color', () => {
   const d: BranchDoc = { id: 'acme/api:docs/specs/a.md', kind: 'spec', name: 'rate-limiting', state: 'approved', file: null, stale: false }
-  expect(docLabel(d, texts('en'))).toBe('▤ Spec rate-limiting · approved')
-  expect(docLabel({ ...d, kind: 'plan', state: 'in-progress' }, texts('fr'))).toBe('▤ Plan rate-limiting · en cours')
-  expect(docLabel(d, texts('fr'))).toBe('▤ Spec rate-limiting · approuvée')
-  expect(docLabel({ ...d, kind: 'plan', state: 'implemented' }, texts('fr'))).toBe('▤ Plan rate-limiting · implémenté')
-  expect(docLabel({ ...d, state: 'in-progress' }, texts('en'))).toBe('▤ Spec rate-limiting · in progress')
+  expect(docTitle(d, texts('en'))).toBe('▤ Spec rate-limiting')
+  expect(docTitle({ ...d, kind: 'plan' }, texts('fr'))).toBe('▤ Plan rate-limiting')
+  expect(texts('fr').doc.state('spec', 'approved')).toBe('approuvée')
+  expect(texts('fr').doc.state('plan', 'implemented')).toBe('implémenté')
+  expect(texts('en').doc.state('spec', 'in-progress')).toBe('in progress')
+})
+
+test('docColor: waiting for approval in yellow, under way in Claude’s color, done in green', () => {
+  expect(docColor('draft')).toBe('warning')
+  expect(docColor('approved')).toBe('claude')
+  expect(docColor('in-progress')).toBe('claude')
+  expect(docColor('implemented')).toBe('success')
 })
 
 test('only an absolute Markdown or HTML path is opened', () => {

@@ -1,9 +1,14 @@
 // How a card names one of its specs or plans.
 import type { Texts } from '../i18n'
-import type { BranchDoc } from '../model'
+import type { BranchDoc, DocState } from '../model'
 
-/** « ▤ Spec rate-limiting · approved » */
-export const docLabel = (d: BranchDoc, t: Texts) => `▤ ${t.doc.kind(d.kind)} ${d.name} · ${t.doc.state(d.kind, d.state)}`
+/** « ▤ Spec rate-limiting »: its state follows, in its color. */
+export const docTitle = (d: BranchDoc, t: Texts) => `▤ ${t.doc.kind(d.kind)} ${d.name}`
+
+/** Like a PR's steps: waiting for the person's approval in yellow, under way in Claude's color, done in green. */
+export function docColor(state: DocState): 'warning' | 'claude' | 'success' {
+  return state === 'draft' ? 'warning' : state === 'implemented' ? 'success' : 'claude'
+}
 
 /** Folded, a card shows only its spec's page (the first spec that has one) and how many documents unfold. */
 export function docSummary(docs: readonly BranchDoc[]): { lead: BranchDoc | null; count: number } {

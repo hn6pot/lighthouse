@@ -48,13 +48,13 @@ With the [intent](https://github.com/hn6pot/intent) mod enabled, each of them, a
 Each PR card and each branch line lists its **specs and plans**: Markdown files under a folder named `specs` or `plans` (`docs/specs/x.md`, `docs/superpowers/plans/y.md`), in the repo or outside any repo (`~/claude-outputs/acme/docs/specs/z.md`). Folded by default to one short line, the spec's page and a toggle; unfolded, one line per document, specs first:
 
 ```
-Spec ↗  ▼ Docs (2)
-▤ Spec rate-limiting · approved   Page ↗
-▤ Plan rate-limiting · in progress   Page ↗  ⚠ out of date
+● Spec ↗  ▼ Docs (2)
+▤ Spec rate-limiting  approved  Page ↗
+▤ Plan rate-limiting  in progress  Page ↗  ⚠ out of date
 ```
 
 - **Which ones.** The documents the branch adds or modifies (against its base, plus uncommitted ones in its worktree); the ones written or published in the session that then wrote code in the branch's worktree, until that session starts a new spec; and the specs those plans cite, by path or file name.
-- **Where they stand**, deduced, never written in the document. A spec is a *draft*, *approved* once a plan cites it, *implemented* once every plan citing it is (or, with no plan, once a PR touching code is merged). A plan is a *draft*, *in progress* once code follows it on the branch, *implemented* once its PR is merged. A merged PR that only touches `specs` or `plans` folders counts for nothing.
+- **Where they stand**, deduced, never written in the document. A spec is a *draft*, *approved* once a plan cites it, *implemented* once every plan citing it is (or, with no plan, once a PR touching code is merged). A plan is a *draft*, *in progress* once code follows it on the branch, *implemented* once its PR is merged. A merged PR that only touches `specs` or `plans` folders counts for nothing. Each state has its color: a draft (waiting for your approval) in yellow, approved and in progress in Claude's color, implemented in green; the folded line starts with a dot in its spec's color.
 - **Page ↗** opens the document's claude.ai page. Lighthouse knows it when Claude publishes, with the Artifact tool, an HTML page whose `<head>` names its Markdown:
 
   ```html

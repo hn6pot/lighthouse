@@ -49,13 +49,13 @@ Avec le mod [intent](https://github.com/hn6pot/intent) activé, chacune d'elles,
 Chaque carte de PR et chaque ligne de branche liste ses **specs et plans** : les fichiers Markdown sous un dossier nommé `specs` ou `plans` (`docs/specs/x.md`, `docs/superpowers/plans/y.md`), dans le dépôt ou hors de tout dépôt (`~/claude-outputs/acme/docs/specs/z.md`). Repliés par défaut en une ligne courte, la page de la spec et un bouton qui déplie ; dépliés, une ligne par document, les specs d'abord :
 
 ```
-Spec ↗  ▼ Docs (2)
-▤ Spec rate-limiting · approuvée   Page ↗
-▤ Plan rate-limiting · en cours   Page ↗  ⚠ pas à jour
+● Spec ↗  ▼ Docs (2)
+▤ Spec rate-limiting  approuvée  Page ↗
+▤ Plan rate-limiting  en cours  Page ↗  ⚠ pas à jour
 ```
 
 - **Lesquels.** Les documents que la branche ajoute ou modifie (par rapport à sa base, plus ceux non commités dans son worktree) ; ceux écrits ou publiés dans la conversation qui a ensuite écrit du code dans le worktree de la branche, jusqu'à ce que cette conversation commence une nouvelle spec ; et les specs que ces plans citent, par chemin ou nom de fichier.
-- **Où ils en sont**, déduit, jamais écrit dans le document. Une spec est un *brouillon*, *approuvée* dès qu'un plan la cite, *implémentée* quand tous les plans qui la citent le sont (ou, sans plan, quand une PR qui touche du code est fusionnée). Un plan est un *brouillon*, *en cours* dès que du code le suit sur la branche, *implémenté* quand sa PR est fusionnée. Une PR fusionnée qui ne touche que des dossiers `specs` ou `plans` ne compte pas.
+- **Où ils en sont**, déduit, jamais écrit dans le document. Une spec est un *brouillon*, *approuvée* dès qu'un plan la cite, *implémentée* quand tous les plans qui la citent le sont (ou, sans plan, quand une PR qui touche du code est fusionnée). Un plan est un *brouillon*, *en cours* dès que du code le suit sur la branche, *implémenté* quand sa PR est fusionnée. Une PR fusionnée qui ne touche que des dossiers `specs` ou `plans` ne compte pas. Chaque état a sa couleur : un brouillon (qui attend ton accord) en jaune, approuvé et en cours dans la couleur de Claude, implémenté en vert ; la ligne repliée commence par une pastille de la couleur de sa spec.
 - **Page ↗** ouvre la page claude.ai du document. Lighthouse la connaît quand Claude publie, avec l'outil Artifact, une page HTML dont le `<head>` nomme son Markdown :
 
   ```html
