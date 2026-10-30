@@ -54,7 +54,7 @@ Each PR card and each branch line lists its **specs and plans**: Markdown files 
 ```
 
 - **Which ones.** The documents the branch adds or modifies (against its base, plus uncommitted ones in its worktree); the ones written or published in the session that then wrote code in the branch's worktree, until that session starts a new spec; and the specs those plans cite, by path or file name.
-- **Where they stand**, deduced, never written in the document. A spec is a *draft*, *approved* once a plan cites it, *implemented* once every plan citing it is (or, with no plan, once a PR touching code is merged). A plan is a *draft*, *in progress* once code follows it on the branch, *implemented* once its PR is merged. A merged PR that only touches `specs` or `plans` folders counts for nothing. Each state has its color: a draft (waiting for your approval) in yellow, approved and in progress in Claude's color, implemented in green; the folded line starts with a dot in its spec's color.
+- **Where they stand**, deduced, never written in the document. A spec is a *draft*, *approved* once a plan cites it, *implemented* once every plan citing it is (or, with no plan, once a PR touching code is merged). A plan is a *draft*, *in progress* once code follows it on the branch, *implemented* once its PR is merged. A merged PR that only touches `specs` or `plans` folders counts for nothing. Each state has its color: a draft (waiting for your approval) in yellow, approved in green, in progress in Claude's color, implemented in green; the folded line starts with a dot in its spec's color.
 - **Page ↗** opens the document's claude.ai page. Lighthouse knows it when Claude publishes, with the Artifact tool, an HTML page whose `<head>` names its Markdown:
 
   ```html

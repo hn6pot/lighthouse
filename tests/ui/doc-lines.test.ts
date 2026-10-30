@@ -12,9 +12,9 @@ test('docTitle names the kind and the name; the state is drawn apart, in its col
   expect(texts('en').doc.state('spec', 'in-progress')).toBe('in progress')
 })
 
-test('docColor: waiting for approval in yellow, under way in Claude’s color, done in green', () => {
+test('docColor: waiting for approval in yellow, approved in green, under way in Claude’s color, done in green', () => {
   expect(docColor('draft')).toBe('warning')
-  expect(docColor('approved')).toBe('claude')
+  expect(docColor('approved')).toBe('success')
   expect(docColor('in-progress')).toBe('claude')
   expect(docColor('implemented')).toBe('success')
 })

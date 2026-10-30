@@ -5,9 +5,9 @@ import type { BranchDoc, DocState } from '../model'
 /** « ▤ Spec rate-limiting »: its state follows, in its color. */
 export const docTitle = (d: BranchDoc, t: Texts) => `▤ ${t.doc.kind(d.kind)} ${d.name}`
 
-/** Like a PR's steps: waiting for the person's approval in yellow, under way in Claude's color, done in green. */
+/** Waiting for the person's approval in yellow, approved in green, under way in Claude's color, done in green. */
 export function docColor(state: DocState): 'warning' | 'claude' | 'success' {
-  return state === 'draft' ? 'warning' : state === 'implemented' ? 'success' : 'claude'
+  return state === 'draft' ? 'warning' : state === 'in-progress' ? 'claude' : 'success'
 }
 
 /** Folded, a card shows only its spec's page (the first spec that has one) and how many documents unfold. */
