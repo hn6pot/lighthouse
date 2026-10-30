@@ -49,8 +49,8 @@ Each PR card and each branch line lists its **specs and plans**: Markdown files 
 
 ```
 Spec ↗  ▼ Docs (2)
-▤ Spec rate-limiting · approved   Page ↗  Copy
-▤ Plan rate-limiting · in progress   Page ↗  ⚠ out of date  Copy
+▤ Spec rate-limiting · approved   Page ↗
+▤ Plan rate-limiting · in progress   Page ↗  ⚠ out of date
 ```
 
 - **Which ones.** The documents the branch adds or modifies (against its base, plus uncommitted ones in its worktree); the ones written or published in the session that then wrote code in the branch's worktree, until that session starts a new spec; and the specs those plans cite, by path or file name.
@@ -63,7 +63,7 @@ Spec ↗  ▼ Docs (2)
 
   `owner/repo:path` for a document in a repo, `~/path` for one outside any repo. Lighthouse never adds the tag: ask for it in your own publishing rules. A page without it is not linked.
 - **⚠ out of date**: the Markdown changed since its page was last published.
-- **Copy** opens the local copy Lighthouse keeps of the page's latest publish, in case the page is lost. **Markdown** opens the file itself, for a document without a page.
+- One button per line: **Page ↗**, else **Copy** (the local copy of the page), else **Markdown** (the file itself). Lighthouse keeps a copy of each page's latest publish in `~/.lighthouse/pages/`, in case the page is lost.
 
 ### Releases
 

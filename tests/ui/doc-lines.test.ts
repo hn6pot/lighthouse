@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { texts } from '../../hooks/i18n'
 import type { BranchDoc } from '../../hooks/model'
-import { docLabel, docSummary, isOpenable } from '../../hooks/ui/doc-lines'
+import { docLabel, docOpener, docSummary, isOpenable } from '../../hooks/ui/doc-lines'
 
 test('docLabel names the kind, the name and the state, in both languages', () => {
   const d: BranchDoc = { id: 'acme/api:docs/specs/a.md', kind: 'spec', name: 'rate-limiting', state: 'approved', file: null, stale: false }
@@ -33,4 +33,11 @@ test('the folded line names the spec page and the count, in both languages', () 
   expect(texts('en').doc.specPage).toBe('Spec ↗')
   expect(texts('en').doc.toggle(3, false)).toBe('▶ Docs (3)')
   expect(texts('fr').doc.toggle(2, true)).toBe('▼ Docs (2)')
+})
+
+test('docOpener: one button per line, the page first, else the local copy, else the Markdown', () => {
+  expect(docOpener(doc({ page: 'https://claude.ai/artifact/s', copy: '/c/a.html', file: '/r/a.md' }))).toEqual({ kind: 'page', target: 'https://claude.ai/artifact/s' })
+  expect(docOpener(doc({ copy: '/c/a.html', file: '/r/a.md' }))).toEqual({ kind: 'copy', target: '/c/a.html' })
+  expect(docOpener(doc({ file: '/r/a.md' }))).toEqual({ kind: 'markdown', target: '/r/a.md' })
+  expect(docOpener(doc({}))).toBe(null)
 })

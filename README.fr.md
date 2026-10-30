@@ -50,8 +50,8 @@ Chaque carte de PR et chaque ligne de branche liste ses **specs et plans** : les
 
 ```
 Spec ↗  ▼ Docs (2)
-▤ Spec rate-limiting · approuvée   Page ↗  Copie
-▤ Plan rate-limiting · en cours   Page ↗  ⚠ pas à jour  Copie
+▤ Spec rate-limiting · approuvée   Page ↗
+▤ Plan rate-limiting · en cours   Page ↗  ⚠ pas à jour
 ```
 
 - **Lesquels.** Les documents que la branche ajoute ou modifie (par rapport à sa base, plus ceux non commités dans son worktree) ; ceux écrits ou publiés dans la conversation qui a ensuite écrit du code dans le worktree de la branche, jusqu'à ce que cette conversation commence une nouvelle spec ; et les specs que ces plans citent, par chemin ou nom de fichier.
@@ -64,7 +64,7 @@ Spec ↗  ▼ Docs (2)
 
   `owner/repo:chemin` pour un document dans un dépôt, `~/chemin` pour un document hors dépôt. Lighthouse n'ajoute jamais cette balise : demande-la dans tes propres règles de publication. Une page sans elle n'est reliée à rien.
 - **⚠ pas à jour** : le Markdown a changé depuis la dernière publication de sa page.
-- **Copie** ouvre la copie locale que Lighthouse garde de la dernière publication de la page, au cas où la page serait perdue. **Markdown** ouvre le fichier lui-même, pour un document sans page.
+- Un seul bouton par ligne : **Page ↗**, sinon **Copie** (la copie locale de la page), sinon **Markdown** (le fichier lui-même). Lighthouse garde une copie de la dernière publication de chaque page dans `~/.lighthouse/pages/`, au cas où la page serait perdue.
 
 ### Releases
 

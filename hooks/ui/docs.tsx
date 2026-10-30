@@ -3,7 +3,7 @@ import type { EngineInterface } from 'claude-code'
 import type { Texts } from '../i18n'
 import type { BranchDoc } from '../model'
 import type { Buttons } from './band'
-import { docLabel, docSummary } from './doc-lines'
+import { docLabel, docOpener, docSummary } from './doc-lines'
 
 /** Components and `$` stay in register.ts: this draws with the resolved `ui` it is given. */
 export function drawDocs(
@@ -28,13 +28,15 @@ export function drawDocs(
       </Box>
       {open && docs.map(d => {
         const k = `${key}-doc-${d.id}`
+        const opener = docOpener(d)
         return (
           <Box key={k} columnGap={1} flexWrap="wrap">
             <Text dimColor wrap="truncate-end">{docLabel(d, t)}</Text>
-            {d.page ? <Link href={d.page} label={t.doc.page} /> : null}
+            {opener?.kind === 'page' ? <Link href={opener.target} label={t.doc.page} /> : null}
+            {opener && opener.kind !== 'page' ? (
+              <Button key={`open-${k}`} plain label={busy(`open-${k}`, opener.kind === 'copy' ? t.doc.copy : t.doc.markdown)} onPress={() => buttons.run(`open-${k}`, () => buttons.openPath(opener.target))} />
+            ) : null}
             {d.page && d.stale ? <Text color="warning">{t.doc.outOfDate}</Text> : null}
-            {d.copy ? <Button key={`copy-${k}`} plain label={busy(`copy-${k}`, t.doc.copy)} onPress={() => buttons.run(`copy-${k}`, () => buttons.openPath(d.copy ?? ''))} /> : null}
-            {!d.page && d.file ? <Button key={`md-${k}`} plain label={busy(`md-${k}`, t.doc.markdown)} onPress={() => buttons.run(`md-${k}`, () => buttons.openPath(d.file ?? ''))} /> : null}
           </Box>
         )
       })}

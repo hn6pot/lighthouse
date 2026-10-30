@@ -10,5 +10,12 @@ export function docSummary(docs: readonly BranchDoc[]): { lead: BranchDoc | null
   return { lead: docs.find(d => d.kind === 'spec' && d.page !== undefined) ?? null, count: docs.length }
 }
 
+/** A line's one button: the page online, else its local copy, else the Markdown; null when there is nothing to open. */
+export function docOpener(d: BranchDoc): { kind: 'page' | 'copy' | 'markdown'; target: string } | null {
+  if (d.page) return { kind: 'page', target: d.page }
+  if (d.copy) return { kind: 'copy', target: d.copy }
+  return d.file ? { kind: 'markdown', target: d.file } : null
+}
+
 /** The Copy and Markdown buttons only ever open an absolute `.md` or `.html` file, on one line. */
 export const isOpenable = (path: string) => path.startsWith('/') && /\.(md|html)$/.test(path) && !/[\n\r]/.test(path)
