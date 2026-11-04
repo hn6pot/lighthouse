@@ -85,3 +85,18 @@ test('a release rule without a path or a command is left out', () => {
   }
   expect(parseConfig(JSON.stringify({ rules })).rules).toEqual({})
 })
+
+test('a manual entry may follow a workflow instead of running a command', () => {
+  const rule = { kind: 'manual', commands: [{ only_under: 'server/', workflow: 'Server Deploy' }, { only_under: 'tools/*/', single: true, command: 'make push T={1}' }] }
+  expect(parseConfig(JSON.stringify({ rules: { 'acme/app': rule } })).rules).toEqual({ 'acme/app': rule })
+})
+
+test('a manual entry needs exactly one of command and workflow', () => {
+  const rules = {
+    'acme/both': { kind: 'manual', commands: [{ only_under: 'x/', command: 'make deploy', workflow: 'Deploy' }] },
+    'acme/neither': { kind: 'manual', commands: [{ only_under: 'x/' }] },
+    'acme/empty-workflow': { kind: 'manual', commands: [{ only_under: 'x/', workflow: '' }] },
+    'acme/bad-workflow': { kind: 'manual', commands: [{ only_under: 'x/', workflow: 3 }] },
+  }
+  expect(parseConfig(JSON.stringify({ rules })).rules).toEqual({})
+})

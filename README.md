@@ -119,6 +119,7 @@ Everything works without a config file. To set deploy rules or gh accounts, crea
     "acme/infra": {
       "kind": "manual",
       "commands": [
+        { "only_under": "api/", "workflow": "Deploy API" },
         { "only_under": "services/*/", "single": true, "command": "make deploy SERVICE={1}" },
         { "only_under": "laptop/", "command": "make install" }
       ]
@@ -145,7 +146,7 @@ The key is the repo as `owner/repo`, as its `origin` remote says. The `kind` fie
 | `workflow` | Follows the GitHub Actions runs of the merge commit. `workflow` names the run to follow, as `gh run list` shows it (not the file name). Without a name, any run whose name contains "deploy" or "merge" counts. |
 | `delay` | The PR counts as deployed `seconds` after the merge. |
 | `immediate` | The PR counts as deployed at once. |
-| `manual` | A command to run on your machine, picked from the files the PR touched (see below). |
+| `manual` | A command to run on your machine, or a workflow to follow, picked from the files the PR touched (see below). |
 | `release` | Nothing at once: the PR waits for a release you start from `/release` (see [Releases](#releases)). `path` is the repo's main folder (`~` allowed), and `command` runs there, through `/bin/zsh -lc`, when you press Release. |
 
 A `manual` rule lists `commands`, tried in order. The first one that matches wins:
@@ -153,8 +154,9 @@ A `manual` rule lists `commands`, tried in order. The first one that matches win
 - `{ "always": true, "command": "…" }` always matches.
 - `{ "only_under": "laptop/", "command": "…" }` matches when every file of the PR is under `laptop/`.
 - `{ "only_under": "services/*/", "single": true, "command": "make deploy SERVICE={1}" }`: the `*` captures one folder name, and `{1}` puts it into the command. With `single`, all the files must fall under the same folder. Only plain names (letters, digits, `.`, `_`, `-`) are captured, so a path can never inject into the command.
+- `{ "only_under": "api/", "workflow": "Deploy API" }`: instead of a command, the matching PRs follow this GitHub Actions run, exactly as a `workflow` rule does. One repo can mix folders deployed by GitHub and folders you deploy by hand. Each entry has either `command` or `workflow`, never both.
 
-If no command matches, the PR goes into doubt and the band asks you. `always_doubt` always puts the PR into doubt, with this reason. It is a string, or `{ "en": "…", "fr": "…" }` to follow the language option.
+If no entry matches, the PR goes into doubt and the band asks you. `always_doubt` always puts the PR into doubt, with this reason. It is a string, or `{ "en": "…", "fr": "…" }` to follow the language option.
 
 **A repo without a rule** is read from its own files, and the merged PR's card shows what was understood:
 

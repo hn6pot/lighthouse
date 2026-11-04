@@ -2,7 +2,11 @@
 import type { Lang, Texts } from '../i18n'
 import type { Plan } from '../model'
 
-export type CommandRule = { only_under?: string; single?: boolean; always?: boolean; command: string }
+/** Which PRs an entry matches, and what it does: run `command` on this machine, or follow the GitHub `workflow`. */
+export type CommandRule = { only_under?: string; single?: boolean; always?: boolean } & (
+  | { command: string; workflow?: never }
+  | { workflow: string; command?: never }
+)
 export type Rule =
   | { kind: 'workflow'; workflow?: string }
   | { kind: 'delay'; seconds: number }
@@ -32,15 +36,25 @@ function captures(pattern: string, files: readonly string[]): string[] | null {
   return found
 }
 
-function manualCommand(commands: readonly CommandRule[], files: readonly string[]): string | null {
+/** The folder `*` captured ('' without one), or null if the entry does not match the files. */
+function matched(c: CommandRule, files: readonly string[]): string | null {
+  if (c.always) return ''
+  if (c.only_under === undefined || files.length === 0) return null
+  const taken = captures(c.only_under, files)
+  if (taken === null) return null
+  const distinct = [...new Set(taken)]
+  if (c.single && distinct.length !== 1) return null
+  return distinct[0] ?? ''
+}
+
+/** The plan of the first entry that matches, or null. */
+function manualPlan(commands: readonly CommandRule[], files: readonly string[]): Plan | null {
   for (const c of commands) {
-    if (c.always) return c.command
-    if (c.only_under === undefined || files.length === 0) continue
-    const taken = captures(c.only_under, files)
-    if (taken === null) continue
-    const distinct = [...new Set(taken)]
-    if (c.single && distinct.length !== 1) continue
-    return c.command.replace('{1}', distinct[0] ?? '')
+    const segment = matched(c, files)
+    if (segment === null) continue
+    if (c.workflow !== undefined) return { kind: 'workflow', workflow: c.workflow }
+    const command = c.command.replace('{1}', segment)
+    return command ? { kind: 'manual', command } : null
   }
   return null
 }
@@ -60,8 +74,7 @@ export function deployPlan(rules: Rules, slug: string, files: readonly string[],
       if (rule.always_doubt) {
         return { kind: 'doubt', reason: typeof rule.always_doubt === 'string' ? rule.always_doubt : rule.always_doubt[t.lang] }
       }
-      const command = manualCommand(rule.commands ?? [], files)
-      return command ? { kind: 'manual', command } : { kind: 'doubt', reason: t.reason.noMatchingCommand }
+      return manualPlan(rule.commands ?? [], files) ?? { kind: 'doubt', reason: t.reason.noMatchingCommand }
     }
   }
 }
