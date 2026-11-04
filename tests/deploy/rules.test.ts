@@ -21,6 +21,14 @@ const RULES: Rules = {
     ],
   },
   'acme/app': { kind: 'manual', commands: [{ always: true, command: 'make install' }] },
+  'acme/platform': {
+    kind: 'manual',
+    commands: [
+      { only_under: 'server/', workflow: 'Server Deploy' },
+      { only_under: 'templates/*/', single: true, command: 'make template-push T={1}' },
+    ],
+  },
+  'acme/mobile': { kind: 'manual', commands: [{ always: true, workflow: 'Store Release' }] },
   'acme/docs': { kind: 'manual', commands: [{ always: true, command: 'pnpm install-app' }] },
   'acme/charts': { kind: 'manual', always_doubt: { fr: 'production : choisir la cible Helm à la main', en: 'production: pick the Helm target by hand' } },
 }
@@ -68,6 +76,14 @@ test('always a command, always a doubt', () => {
     kind: 'doubt',
     reason: 'production: pick the Helm target by hand',
   })
+})
+
+test('a manual entry with a workflow: followed like a workflow rule, the others keep their command', () => {
+  expect(deployPlan(RULES, 'acme/platform', ['server/src/a.js', 'server/package.json'], t)).toEqual({ kind: 'workflow', workflow: 'Server Deploy' })
+  expect(deployPlan(RULES, 'acme/platform', ['templates/pr-reviewer/main.tf'], t)).toEqual({ kind: 'manual', command: 'make template-push T=pr-reviewer' })
+  expect(deployPlan(RULES, 'acme/platform', ['server/a.js', 'templates/x/main.tf'], t)).toMatchObject({ kind: 'doubt' })
+  expect(deployPlan(RULES, 'acme/platform', ['README.md'], t)).toMatchObject({ kind: 'doubt' })
+  expect(deployPlan(RULES, 'acme/mobile', ['x'], t)).toEqual({ kind: 'workflow', workflow: 'Store Release' })
 })
 
 test('PR without files on a manual repo with patterns: doubt', () => {

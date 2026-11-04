@@ -120,6 +120,7 @@ Tout marche sans fichier de configuration. Pour fixer des règles de déploiemen
     "acme/infra": {
       "kind": "manual",
       "commands": [
+        { "only_under": "api/", "workflow": "Deploy API" },
         { "only_under": "services/*/", "single": true, "command": "make deploy SERVICE={1}" },
         { "only_under": "laptop/", "command": "make install" }
       ]
@@ -146,7 +147,7 @@ La clé est le dépôt sous la forme `owner/repo`, tel que le donne son remote `
 | `workflow` | Suit les exécutions GitHub Actions du commit de fusion. `workflow` nomme l'exécution à suivre, telle que `gh run list` la montre (pas le nom du fichier). Sans nom, toute exécution dont le nom contient « deploy » ou « merge » compte. |
 | `delay` | La PR compte comme déployée `seconds` secondes après la fusion. |
 | `immediate` | La PR compte comme déployée tout de suite. |
-| `manual` | Une commande à lancer sur ta machine, choisie selon les fichiers touchés par la PR (voir dessous). |
+| `manual` | Une commande à lancer sur ta machine, ou un workflow à suivre, choisi selon les fichiers touchés par la PR (voir dessous). |
 | `release` | Rien tout de suite : la PR attend une release que tu lances depuis `/release` (voir [Releases](#releases)). `path` est le dossier principal du dépôt (`~` accepté), et `command` y tourne, via `/bin/zsh -lc`, quand tu appuies sur Release. |
 
 Une règle `manual` liste des `commands`, essayées dans l'ordre. La première qui correspond l'emporte :
@@ -154,8 +155,9 @@ Une règle `manual` liste des `commands`, essayées dans l'ordre. La première q
 - `{ "always": true, "command": "…" }` correspond toujours.
 - `{ "only_under": "laptop/", "command": "…" }` correspond quand tous les fichiers de la PR sont sous `laptop/`.
 - `{ "only_under": "services/*/", "single": true, "command": "make deploy SERVICE={1}" }` : le `*` capture un nom de dossier, et `{1}` le met dans la commande. Avec `single`, tous les fichiers doivent tomber sous le même dossier. Seuls les noms simples (lettres, chiffres, `.`, `_`, `-`) sont capturés : un chemin ne peut jamais injecter quoi que ce soit dans la commande.
+- `{ "only_under": "api/", "workflow": "Deploy API" }` : au lieu d'une commande, les PR qui correspondent suivent cette exécution GitHub Actions, exactement comme une règle `workflow`. Un même dépôt peut ainsi mêler des dossiers déployés par GitHub et des dossiers que tu déploies à la main. Chaque entrée a soit `command`, soit `workflow`, jamais les deux.
 
-Si aucune commande ne correspond, la PR passe en déploiement à confirmer et le bandeau te demande. `always_doubt` met toujours la PR en déploiement à confirmer, avec cette raison. C'est une chaîne, ou `{ "en": "…", "fr": "…" }` pour suivre l'option de langue.
+Si aucune entrée ne correspond, la PR passe en déploiement à confirmer et le bandeau te demande. `always_doubt` met toujours la PR en déploiement à confirmer, avec cette raison. C'est une chaîne, ou `{ "en": "…", "fr": "…" }` pour suivre l'option de langue.
 
 **Un dépôt sans règle** se lit dans ses propres fichiers, et la carte de la PR fusionnée montre ce qui a été compris :
 

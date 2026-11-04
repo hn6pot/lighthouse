@@ -6,6 +6,7 @@
     "acme/infra": {
       "kind": "manual",
       "commands": [
+        { "only_under": "api/", "workflow": "Deploy API" },
         { "only_under": "services/*/", "single": true, "command": "make deploy SERVICE={1}" },
         { "only_under": "laptop/", "command": "make install" }
       ]

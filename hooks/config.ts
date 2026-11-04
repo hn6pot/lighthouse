@@ -14,9 +14,15 @@ export const configPath = (home: string) => `${home}/${DATA_DIR}/config.json`
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const optional = (value: unknown, type: 'string' | 'boolean') => value === undefined || typeof value === type
 
+/** Exactly one of `command` and `workflow`, and a workflow has a name. */
+const hasOneAction = (value: Record<string, unknown>) =>
+  value.workflow === undefined
+    ? typeof value.command === 'string'
+    : value.command === undefined && typeof value.workflow === 'string' && value.workflow !== ''
+
 const isCommandRule = (value: unknown): value is CommandRule =>
   isRecord(value) &&
-  typeof value.command === 'string' &&
+  hasOneAction(value) &&
   optional(value.only_under, 'string') &&
   optional(value.single, 'boolean') &&
   optional(value.always, 'boolean')
