@@ -18,6 +18,7 @@ import { capturePublish, toolDocEvents, type DocEvent } from './docs/events'
 import { docsStore } from './docs/records'
 import { push } from './repos/git'
 import { DATA_DIR, forgetSession, record } from './sessions/registry'
+import { resumeTrees } from './sessions/resume'
 import { drawBand, type Buttons } from './ui/band'
 import { actionPrompt, branchPrompt, CHECK_FRAMES, tidyPrompt } from './ui/lines'
 import { notifyOnce, sendNotification } from './ui/notify'
@@ -360,6 +361,7 @@ export const register: Register = (on, options) => {
   let running = false
   let replay = false
   let scheduled = false
+  let resumed = false
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'lighthouse', description: t.commandDescription })
@@ -417,6 +419,11 @@ export const register: Register = (on, options) => {
         const links = [...state.links.values()]
         state.folders.clear()
         state.links.clear()
+        // First tick: the trees saved before a resume come back before the registry is rewritten.
+        if (!resumed) {
+          resumed = true
+          await resumeTrees(host, ctx)
+        }
         for (const d of folders) await addFolder(host, ctx, d).catch(() => undefined)
         for (const l of links) await addPrLink(host, ctx, l.slug, l.number).catch(() => undefined)
         // Registry up to date before any cleanup decision of the tick; after that, the heartbeat keeps it.

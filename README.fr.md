@@ -207,7 +207,7 @@ Tout est sous `~/.lighthouse/` :
 | --- | --- |
 | `config.json` | Ta configuration (facultative, écrite par toi, jamais par le mod). |
 | `state/` | L'état des PR suivies et les notifications déjà envoyées, un fichier JSON par clé, partagé entre les conversations. |
-| `sessions/` | Une entrée par conversation active : son dossier et ses worktrees. |
+| `sessions/` | Une entrée par conversation active : son dossier et ses worktrees. Une conversation reprise y retrouve ses worktrees. |
 | `locks/` | Les verrous des dépôts. |
 | `logs/` | Les journaux des déploiements et des releases lancés par le mod. |
 | `releases/` | La dernière release de chaque dépôt en mode release : ce qui a été lancé (un JSON, qui sert aussi de verrou), son script, et son code de sortie une fois finie. |
