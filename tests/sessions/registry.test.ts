@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { forgetSession, liveSessions, otherSessionIn, record } from '../../hooks/sessions/registry'
+import { forgetSession, liveSessions, otherSessionIn, record, savedTrees } from '../../hooks/sessions/registry'
 import { fakeHost } from '../helpers/fake-host'
 
 const LIST = /^ls -1 \/Users\/me\/\.lighthouse\/sessions/
@@ -47,4 +47,16 @@ test('liveSessions: the other sessions still beating, with their label', async (
   })
   state.now = 1_000_000 + 60_000
   expect(await liveSessions(host, 'me')).toEqual([{ id: 'a', cwd: '/a', trees: ['/r/y'], label: 'Fix the CI' }])
+})
+
+test('savedTrees: the trees of this session’s own entry, none without a readable one', async () => {
+  const dir = '/Users/me/.lighthouse/sessions'
+  const { host } = fakeHost([], {
+    [`${dir}/me.json`]: JSON.stringify({ cwd: '/w', trees: ['/r', '/r/.worktrees/x'], updatedAt: 0 }),
+    [`${dir}/other.json`]: JSON.stringify({ cwd: '/o', trees: ['/o'], updatedAt: 0 }),
+    [`${dir}/bad.json`]: '{',
+  })
+  expect(await savedTrees(host, 'me')).toEqual(['/r', '/r/.worktrees/x'])
+  expect(await savedTrees(host, 'bad')).toEqual([])
+  expect(await savedTrees(host, 'new')).toEqual([])
 })

@@ -127,6 +127,16 @@ test('heartbeat independent of ticks: recorded even during a blocked tick', { op
   expect(entry.cwd).toBe('/w/web')
 })
 
+test('a resumed session keeps the trees it worked in: the registry is not cut down to its folder', { options: { language: 'fr' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  const entry = '/Users/me/.lighthouse/sessions/me.json'
+  const files: Record<string, string> = { [entry]: JSON.stringify({ cwd: '/w/web', trees: ['/w/web/.worktrees/x'], updatedAt: 0 }) }
+  engine(on, files, { cwd: '/w/web' })
+  await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
+  await clock.advance(3_000)
+  expect(JSON.parse(files[entry]).trees).toEqual(['/w/web/.worktrees/x', '/w/web'])
+})
+
 test('the pane opens on its own once, not at every tick', { options: { language: 'fr' } }, async ($, on) => {
   const clock = mock.clock(on)
   const lines = engine(on, {}, { cwd: '/w/web' })

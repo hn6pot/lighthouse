@@ -206,7 +206,7 @@ Everything lives under `~/.lighthouse/`:
 | --- | --- |
 | `config.json` | Your config (optional, written by you, never by the mod). |
 | `state/` | The state of tracked PRs and the notifications already sent, one JSON file per key, shared between sessions. |
-| `sessions/` | One entry per active session: its folder and worktrees. |
+| `sessions/` | One entry per active session: its folder and worktrees. A resumed session gets its worktrees back from it. |
 | `locks/` | Repo locks. |
 | `logs/` | Logs of the deploys and releases the mod launched. |
 | `releases/` | The last release of each release repo: what was launched (a JSON record, also the lock), its script, and its exit code once done. |

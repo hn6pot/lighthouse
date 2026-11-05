@@ -36,6 +36,12 @@ export async function record(host: Host, id: string, info: { cwd: string; trees:
   await host.write(`${dir(host)}/${id}.json`, JSON.stringify(entry))
 }
 
+/** The trees this session's own entry saved: a resumed conversation (new process) starts from them. */
+export async function savedTrees(host: Host, id: string): Promise<string[]> {
+  const text = await host.read(`${dir(host)}/${id}.json`)
+  return (text === null ? null : parseEntry(text))?.trees ?? []
+}
+
 export async function otherSessionIn(host: Host, id: string, tree: string): Promise<boolean> {
   const list = await host.run(['ls', '-1', dir(host)])
   if (list.exitCode !== 0) return false
