@@ -28,7 +28,7 @@ PRs and branches are grouped by session first: **this session**, **another sessi
 
 A last frame, **To review**, lists the open PRs where your review is requested, in any repo (not only the session's): their title, repo, author and last activity. They come from `gh search prs --review-requested=@me`, on your active gh account and on each account of `ghConfigDirs`, at most every 2 minutes through the shared cache (at once with "↻").
 
-With the intent mod enabled (a separate mod, not public yet), each of them, and each of your own PRs, gets a **Review with intent** button: it runs `/intent <PR link>`, which opens intent's review page on that PR (the why behind each change). A mod cannot import another one, so the slash command is the only link between the two; without intent, the button is not shown.
+With the [intent](https://github.com/hn6pot/intent) mod enabled, each of them, and each of your own PRs, gets a **Review with intent** button: it runs `/intent <PR link>`, which opens intent's review page on that PR (the why behind each change). A mod cannot import another one, so the slash command is the only link between the two; without intent, the button is not shown.
 
 ### Specs and plans
 
