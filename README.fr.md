@@ -28,7 +28,7 @@ Les PR et les branches sont groupées d'abord par conversation : **cette convers
 
 Un dernier cadre, **À relire**, liste les PR ouvertes où ta relecture est demandée, dans n'importe quel dépôt (pas seulement ceux de la conversation) : leur titre, leur dépôt, leur auteur et leur dernière activité. Elles viennent de `gh search prs --review-requested=@me`, sur ton compte gh actif et sur chaque compte de `ghConfigDirs`, au plus toutes les 2 minutes via le cache partagé (tout de suite avec « ↻ »).
 
-Avec le mod intent activé (un mod à part, pas encore public), chacune d'elles, et chacune de tes propres PR, a un bouton **Relire avec intent** : il lance `/intent <lien de la PR>`, qui ouvre la page de revue d'intent sur cette PR (le pourquoi de chaque changement). Un mod ne peut pas en importer un autre : la commande slash est le seul lien entre les deux ; sans intent, le bouton n'apparaît pas.
+Avec le mod [intent](https://github.com/hn6pot/intent) activé, chacune d'elles, et chacune de tes propres PR, a un bouton **Relire avec intent** : il lance `/intent <lien de la PR>`, qui ouvre la page de revue d'intent sur cette PR (le pourquoi de chaque changement). Un mod ne peut pas en importer un autre : la commande slash est le seul lien entre les deux ; sans intent, le bouton n'apparaît pas.
 
 ### Specs et plans
 
