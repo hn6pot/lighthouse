@@ -6,22 +6,9 @@ A Claude Code mod that adds a **Lighthouse** pane on the side of your session. I
 
 > **Early access.** Claude Code mods (plugins with a hooks module) are an early-access API. It may change, and this mod may break when it does.
 
-```
-╭─ Lighthouse ────────────────────────────────────────── ↻ ─╮
-│ 2 PRs · 1 to deploy · 1 to push                           │
-│ ╭─ This session ────────────────────────────────────────╮ │
-│ │ ▼ api                                    v1.4.0 +12   │ │
-│ │   #42 feat: add rate limiting  ⎇ feat/rate (worktree) │ │
-│ │   Review ─ CI ─ Merge ─ Deploy ─ Clean up             │ │
-│ │   Review approved · CI ✓ · opened 3 d ago · +120 −30  │ │
-│ │   [Open on GitHub] [Merge]                            │ │
-│ │   feat/rate-docs · ↳ on #42 · ↑2 unpushed  [Push]     │ │
-│ │   #39 fix: login · Merged into main · Deploying ⟳     │ │
-│ │   [Tidy up]                                           │ │
-│ ╰───────────────────────────────────────────────────────╯ │
-│ ▶ Another session · “Fix the pipeline” ↗                  │
-╰───────────────────────────────────────────────────────────╯
-```
+![The Lighthouse pane: a PR goes from CI to merge, deploy and cleanup, while a background agent fixes another PR's CI](docs/demo/lighthouse.gif)
+
+*A mock of the pane with fake repos ([source](docs/demo/pane.html)).*
 
 ## What it does
 
@@ -41,7 +28,7 @@ PRs and branches are grouped by session first: **this session**, **another sessi
 
 A last frame, **To review**, lists the open PRs where your review is requested, in any repo (not only the session's): their title, repo, author and last activity. They come from `gh search prs --review-requested=@me`, on your active gh account and on each account of `ghConfigDirs`, at most every 2 minutes through the shared cache (at once with "↻").
 
-With the [intent](https://github.com/hn6pot/intent) mod enabled, each of them, and each of your own PRs, gets a **Review with intent** button: it runs `/intent <PR link>`, which opens intent's review page on that PR (the why behind each change). A mod cannot import another one, so the slash command is the only link between the two; without intent, the button is not shown.
+With the intent mod enabled (a separate mod, not public yet), each of them, and each of your own PRs, gets a **Review with intent** button: it runs `/intent <PR link>`, which opens intent's review page on that PR (the why behind each change). A mod cannot import another one, so the slash command is the only link between the two; without intent, the button is not shown.
 
 ### Specs and plans
 

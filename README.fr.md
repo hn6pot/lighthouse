@@ -6,23 +6,9 @@ Un mod Claude Code qui ajoute un panneau **Lighthouse** sur le côté de la conv
 
 > **Accès anticipé.** Les mods Claude Code (des plugins avec un module de hooks) sont une API en accès anticipé. Elle peut changer, et ce mod peut casser quand elle change.
 
-```
-╭─ Lighthouse ────────────────────────────────────────── ↻ ─╮
-│ 2 PR · 1 à déployer · 1 à pousser                         │
-│ ╭─ Cette conversation ──────────────────────────────────╮ │
-│ │ ▼ api                                    v1.4.0 +12   │ │
-│ │   #42 feat: add rate limiting  ⎇ feat/rate (worktree) │ │
-│ │   Revue ─ CI ─ Fusion ─ Déploiement ─ Nettoyage       │ │
-│ │   Revue approuvée · CI ✓ · ouverte il y a 3 j         │ │
-│ │   [Ouvrir sur GitHub] [Fusionner]                     │ │
-│ │   feat/rate-docs · ↳ sur #42 · ↑2 non poussés         │ │
-│ │   [Pousser]                                           │ │
-│ │   #39 fix: login · Fusionnée dans main ⟳              │ │
-│ │   [Ménage]                                            │ │
-│ ╰───────────────────────────────────────────────────────╯ │
-│ ▶ Autre conversation · « Fix the pipeline » ↗             │
-╰───────────────────────────────────────────────────────────╯
-```
+![Le panneau Lighthouse : une PR passe de la CI à la fusion, au déploiement et au nettoyage, pendant qu'un agent en arrière-plan répare la CI d'une autre PR](docs/demo/lighthouse.gif)
+
+*Une maquette du panneau avec de faux dépôts ([source](docs/demo/pane.html)).*
 
 ## Ce qu'il fait
 
@@ -42,7 +28,7 @@ Les PR et les branches sont groupées d'abord par conversation : **cette convers
 
 Un dernier cadre, **À relire**, liste les PR ouvertes où ta relecture est demandée, dans n'importe quel dépôt (pas seulement ceux de la conversation) : leur titre, leur dépôt, leur auteur et leur dernière activité. Elles viennent de `gh search prs --review-requested=@me`, sur ton compte gh actif et sur chaque compte de `ghConfigDirs`, au plus toutes les 2 minutes via le cache partagé (tout de suite avec « ↻ »).
 
-Avec le mod [intent](https://github.com/hn6pot/intent) activé, chacune d'elles, et chacune de tes propres PR, a un bouton **Relire avec intent** : il lance `/intent <lien de la PR>`, qui ouvre la page de revue d'intent sur cette PR (le pourquoi de chaque changement). Un mod ne peut pas en importer un autre : la commande slash est le seul lien entre les deux ; sans intent, le bouton n'apparaît pas.
+Avec le mod intent activé (un mod à part, pas encore public), chacune d'elles, et chacune de tes propres PR, a un bouton **Relire avec intent** : il lance `/intent <lien de la PR>`, qui ouvre la page de revue d'intent sur cette PR (le pourquoi de chaque changement). Un mod ne peut pas en importer un autre : la commande slash est le seul lien entre les deux ; sans intent, le bouton n'apparaît pas.
 
 ### Specs et plans
 

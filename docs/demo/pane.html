@@ -1,0 +1,157 @@
+<!doctype html>
+<!--
+  A mock of the Lighthouse pane, with fake repos, used to draw docs/demo/lighthouse.gif.
+  Each frame is a step of the story, picked by the URL hash (pane.html#3).
+  Regenerate the GIF: docs/demo/record.sh
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lighthouse pane mock</title>
+<style>
+  :root {
+    --bg: #1f1e1d; --pane: #262624; --text: #e8e6dc; --dim: #9c9a92; --subtle: #4a4945;
+    --claude: #d97757; --success: #6cc27e; --warning: #e3b341; --error: #ec6a5e; --link: #8fb8f0;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); }
+  .window { width: 500px; margin: 16px; background: var(--pane); border: 1px solid #3a3936; border-radius: 12px; overflow: hidden; }
+  .title { display: flex; align-items: center; padding: 9px 14px; border-bottom: 1px solid #3a3936; font-weight: 600; }
+  .title .x { margin-left: auto; color: var(--dim); font-weight: 400; }
+  .body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 12px; }
+  .row { display: flex; gap: 7px; align-items: baseline; flex-wrap: wrap; }
+  .grow { flex: 1; min-width: 0; }
+  .dim { color: var(--dim); }
+  .frame { border: 1px solid var(--subtle); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+  .frame.here { border-color: var(--claude); }
+  .frame-title { font-weight: 600; color: var(--claude); }
+  .card { padding-left: 16px; margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+  .card.stacked { padding-left: 32px; }
+  .link { color: var(--link); }
+  .success { color: var(--success); } .warning { color: var(--warning); } .error { color: var(--error); }
+  .claude { color: var(--claude); } .subtle { color: #6f6d66; }
+  .chips { display: flex; column-gap: 14px; flex-wrap: wrap; }
+  .buttons { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .btn { border: 1px solid #55534e; border-radius: 6px; padding: 1px 8px; font-size: 12px; color: var(--text); background: #2f2e2b; }
+  .btn.primary { background: var(--claude); border-color: var(--claude); color: #1f1e1d; font-weight: 600; }
+  .btn.pressed { outline: 2px solid var(--claude); outline-offset: 1px; }
+  .plain { color: var(--dim); }
+  .done { font-weight: 700; }
+  .fade { opacity: .35; }
+</style>
+</head>
+<body>
+<div class="window">
+  <div class="title">Lighthouse <span class="x">✕</span></div>
+  <div class="body" id="pane"></div>
+</div>
+<script>
+// One entry per frame. Each key changes what the step shows; the rest stays as in step 0.
+const STEPS = [
+  {},
+  { docsOpen: true },
+  { docsOpen: true, ci: 'ok' },
+  { ci: 'ok', pressed: 'merge' },
+  { ci: 'ok', pending: true },
+  { ci: 'ok', merging: true, fixing: true },
+  { stage: 'deploying', fixing: true },
+  { stage: 'deployed', webCi: 'pending' },
+  { stage: 'cleaned', webCi: 'pending' },
+  { stage: 'gone', webCi: 'ok' },
+]
+
+const dot = (color, text) => `<span class="${color}">● ${text}</span>`
+const btn = (label, cls = '') => `<span class="btn ${cls}">${label}</span>`
+const progress = states => {
+  const labels = ['Review', 'CI', 'Merge', 'Deploy', 'Clean up']
+  const color = { done: 'success', now: 'warning', bad: 'error', todo: 'subtle' }
+  return `<div>${labels.map((l, i) => `<span class="${color[states[i]]}">${i ? ' ─ ' : ''}${states[i] === 'todo' ? '○' : '●'} ${l}</span>`).join('')}</div>`
+}
+
+function render(s) {
+  const ci = s.ci ?? 'pending'
+  const stage = s.stage ?? 'open'
+  const webCi = s.webCi ?? 'failing'
+  const prs = stage === 'open' ? '2 PRs' : '1 PR'
+  const toPush = '2 to push'
+
+  const summary = [prs, stage === 'deploying' ? '1 to deploy' : null, toPush].filter(Boolean).join(' · ')
+
+  // PR #42 of acme/api, followed from its review to its cleanup.
+  let pr42 = ''
+  if (stage === 'open') {
+    const docs = s.docsOpen
+      ? `<div class="row"><span class="success">●</span><span class="link">Spec ↗</span><span class="plain">▼ Docs (2)</span></div>
+         <div class="row"><span class="dim">▤ Spec rate-limiting</span><span class="success">approved</span><span class="link">Page ↗</span></div>
+         <div class="row"><span class="dim">▤ Plan rate-limiting</span><span class="warning">in progress</span><span class="link">Page ↗</span></div>`
+      : `<div class="row"><span class="success">●</span><span class="link">Spec ↗</span><span class="plain">▶ Docs (2)</span></div>`
+    const merge = s.pending ? btn('Confirm merge', 'primary') : btn('Merge', s.pressed === 'merge' ? 'pressed' : '')
+    pr42 = `<div class="card">
+      <div class="row"><span class="link">#42</span><span>feat: add rate limiting</span></div>
+      <div class="dim">⎇ feat/rate-limiting (worktree)</div>
+      ${progress(['done', ci === 'ok' ? 'done' : 'now', 'todo', 'todo', 'todo'])}
+      ${docs}
+      <div class="dim">opened 2 d ago · +120 −30 · 6 files</div>
+      <div class="chips">${dot('success', 'Review approved')}${ci === 'ok' ? dot('success', 'CI ✓') : dot('warning', 'CI running')}</div>
+      ${s.merging ? '<div class="claude">⟳ Claude is merging #42…</div>' : ''}
+      <div class="buttons">${btn('Open on GitHub')}${btn('Review with intent')}${ci === 'ok' && !s.merging ? merge : ''}</div>
+    </div>`
+  } else if (stage !== 'gone') {
+    const line = {
+      deploying: [dot('success', 'Merged into main') + dot('warning', 'Deploying ⟳'), ['done', 'done', 'done', 'now', 'todo']],
+      deployed: [dot('success', 'Merged into main') + dot('success', 'Deployed') + dot('warning', 'Cleaning up'), ['done', 'done', 'done', 'done', 'now']],
+    }[stage]
+    pr42 = stage === 'cleaned'
+      ? `<div class="card"><div class="row"><span class="link">#42</span><span>feat: add rate limiting</span></div>
+         <div class="success done">✓ Deployed · worktree cleaned</div></div>`
+      : `<div class="card"><div class="row"><span class="link">#42</span><span>feat: add rate limiting</span></div>
+         <div class="chips">${line[0]}</div>${progress(line[1])}</div>`
+  }
+
+  // A branch stacked on #42 (on its own once #42 is merged), and a branch never pushed.
+  const stacked = `<div class="card${stage === 'open' ? ' stacked' : ''}"><div class="row"><span>⎇ feat/rate-limiting-docs</span><span class="dim">(worktree)</span></div>
+    <div class="chips">${stage === 'open' ? dot('dim', '↳ on #42') : ''}${dot('warning', '↑2 unpushed')}</div>
+    <div class="buttons">${btn('Push')}</div></div>`
+  const loose = `<div class="card"><div class="row"><span>⎇ fix/footer-typo</span></div>
+    <div class="chips">${dot('warning', '1 commit never pushed')}</div>
+    <div class="buttons">${btn('Push')}${btn('Open a PR')}</div></div>`
+
+  // PR #18 of acme/web: a red CI handed to a background agent.
+  const webState = { failing: ['now', 'bad'], pending: ['now', 'now'], ok: ['now', 'done'] }[webCi]
+  const pr18 = `<div class="card">
+    <div class="row"><span class="link">#18</span><span>fix: login redirect</span></div>
+    <div class="dim">⎇ fix/login-redirect (worktree)</div>
+    ${progress([webState[0], webState[1], 'todo', 'todo', 'todo'])}
+    <div class="chips">${dot('warning', 'Review pending')}${{ failing: dot('error', 'CI ✗ e2e'), pending: dot('warning', 'CI running'), ok: dot('success', 'CI ✓') }[webCi]}</div>
+    ${s.fixing ? '<div class="claude">⟳ Fix the CI of #18…</div>' : ''}
+    <div class="buttons">${btn('Open on GitHub')}${webCi === 'failing' && !s.fixing ? btn('Fix the CI') : ''}</div>
+  </div>`
+
+  const apiColor = 'warning'
+  const apiDetails = stage === 'open' ? 'v1.4.0 +12 · 1 PR · 2 without PR' : 'v1.4.0 +13 · 2 without PR'
+  const webColor = webCi === 'failing' ? 'error' : webCi === 'pending' ? 'warning' : 'success'
+
+  document.getElementById('pane').innerHTML = `
+    <div class="row"><span class="dim grow">${summary}</span><span class="plain">↻</span></div>
+    <div class="frame here">
+      <div class="frame-title">This session</div>
+      <div>
+        <div class="row"><span class="${apiColor}">●</span><span>▼ api</span><span class="dim grow">${apiDetails}</span><span class="plain">Tidy up</span></div>
+        ${s.merging ? '<div class="claude">  ⟳ Claude is working here</div>' : ''}
+        ${pr42}${stacked}${loose}
+      </div>
+      <div>
+        <div class="row"><span class="${webColor}">●</span><span>▼ web</span><span class="dim grow">1 PR</span><span class="plain">Tidy up</span></div>
+        ${pr18}
+      </div>
+    </div>
+    <div class="frame"><div class="row"><span>▶ Another session · “Fix the pipeline”</span><span class="plain">↗</span></div></div>
+    <div class="frame"><div class="row"><span>▶ To review · 2</span></div></div>`
+}
+
+const step = Number(location.hash.slice(1)) || 0
+render(STEPS[Math.min(step, STEPS.length - 1)])
+</script>
+</body>
+</html>
