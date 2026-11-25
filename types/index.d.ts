@@ -21,6 +21,9 @@ export type LighthousePrSummary = {
   ci: 'ok' | 'failing' | 'pending' | 'none'
   failedChecks: string[]
   review: 'approved' | 'changes' | 'pending' | 'none'
+  approvals: number
+  reviewers: number
+  requiredApprovals?: number
   draft: boolean
   conflict: boolean
   behind: boolean

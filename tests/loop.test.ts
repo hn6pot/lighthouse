@@ -4,6 +4,7 @@ import { texts } from '../hooks/i18n'
 import { addFolder, addPrLink, CLEANUP_RETRY_MS, cleanNow, forgetNow, refreshConfig, tick, type Context } from '../hooks/loop'
 import type { ReleaseRepo, ReviewRequest, TreeState, Tracked } from '../hooks/model'
 import { fakeHost, type Answer } from './helpers/fake-host'
+import { OPEN_PRS, searchAnswer } from './helpers/open-prs'
 
 const t = texts('fr')
 // The person's config: how acme/web deploys, and the gh account of the acme repos.
@@ -50,7 +51,7 @@ const GIT_BASE: [RegExp, Answer][] = [
 const PR_OPEN = { number: 4, title: 't', state: 'OPEN', headRefName: 'feat/x', headRefOid: 'tip', baseRefName: 'main', mergeCommit: null, mergedAt: null, reviewDecision: null, statusCheckRollup: [] }
 
 test('a touched folder becomes a tracked repo, its open PRs tracked PRs', async () => {
-  const h = fakeHost([...GIT_BASE, [/^gh pr list/, { stdout: JSON.stringify([PR_OPEN]) }], [/^gh pr view 4/, { stdout: JSON.stringify({ ...PR_OPEN, files: [] }) }]])
+  const h = fakeHost([...GIT_BASE, [OPEN_PRS, { stdout: searchAnswer([PR_OPEN]) }], [/^gh pr view 4/, { stdout: JSON.stringify({ ...PR_OPEN, files: [] }) }]])
   const c = ctx()
   await addFolder(h.host, c, '/w/web/ec2')
   const a = actions()
@@ -64,7 +65,7 @@ test('PR merged on web, ec2 only, nothing in doubt: deploys then cleans up', asy
   const merged = { ...PR_OPEN, state: 'MERGED', mergeCommit: { oid: 'm' }, files: [{ path: 'ec2/a.py' }] }
   const h = fakeHost([
     ...GIT_BASE,
-    [/^gh pr list/, { stdout: '[]' }],
+    [OPEN_PRS, { stdout: searchAnswer([]) }],
     [/^gh pr view 4/, { stdout: JSON.stringify(merged) }],
     [/pull --ff-only/, {}],
     [/worktree list --porcelain/, { stdout: 'worktree /w/web\nHEAD a\nbranch refs/heads/main\n\nworktree /w/web/.worktrees/x\nHEAD tip\nbranch refs/heads/feat/x\n' }],
@@ -89,7 +90,7 @@ test('PR merged on web, ec2 only, nothing in doubt: deploys then cleans up', asy
 
 test('manual repo in doubt: notification and deploy-doubt stage, nothing launched', async () => {
   const merged = { ...PR_OPEN, state: 'MERGED', mergeCommit: { oid: 'm' }, files: [{ path: 'ec2/a' }, { path: 'mac/b' }] }
-  const h = fakeHost([...GIT_BASE, [/^gh pr list/, { stdout: '[]' }], [/^gh pr view 4/, { stdout: JSON.stringify(merged) }], [/^rm -rf/, {}]])
+  const h = fakeHost([...GIT_BASE, [OPEN_PRS, { stdout: searchAnswer([]) }], [/^gh pr view 4/, { stdout: JSON.stringify(merged) }], [/^rm -rf/, {}]])
   const c = ctx()
   await addFolder(h.host, c, '/w/web')
   await save(h.host.store, { key: 'acme/web#4', slug: 'acme/web', root: '/w/web', number: 4, branch: 'feat/x', base: 'main', stage: 'open', updatedAt: 0 })
@@ -102,7 +103,7 @@ test('manual repo in doubt: notification and deploy-doubt stage, nothing launche
 
 test('manual deploy failed: failed stage, notification, no cleanup', async () => {
   const merged = { ...PR_OPEN, state: 'MERGED', mergeCommit: { oid: 'm' }, files: [{ path: 'ec2/a' }] }
-  const h = fakeHost([...GIT_BASE, [/^gh pr list/, { stdout: '[]' }], [/^gh pr view 4/, { stdout: JSON.stringify(merged) }], [/pull --ff-only/, {}], [/^rm -rf/, {}]])
+  const h = fakeHost([...GIT_BASE, [OPEN_PRS, { stdout: searchAnswer([]) }], [/^gh pr view 4/, { stdout: JSON.stringify(merged) }], [/pull --ff-only/, {}], [/^rm -rf/, {}]])
   h.state.launchReturns = { code: 1, output: 'boom' }
   const c = ctx()
   await addFolder(h.host, c, '/w/web')
@@ -144,7 +145,7 @@ const TREE_X = 'worktree /w/web\nHEAD a\nbranch refs/heads/main\n\nworktree /w/w
 test('deploy done then cleanup crashes: deployed saved, nothing relaunched at the next tick', async () => {
   const h = fakeHost([
     ...GIT_BASE,
-    [/^gh pr list/, { stdout: '[]' }],
+    [OPEN_PRS, { stdout: searchAnswer([]) }],
     [/^gh pr view 4/, { stdout: JSON.stringify(MERGED_EC2) }],
     [/pull --ff-only/, {}],
     [/worktree list/, () => { throw new Error('git crashed') }],
@@ -213,7 +214,7 @@ test('link to my open PR: tracked; my login is asked once, with the repo’s acc
 })
 
 test('cleaned: reaches the pane for one minute (its check), then never again', async () => {
-  const h = fakeHost([...GIT_BASE, [/^gh pr list/, { stdout: '[]' }]], {}, 0)
+  const h = fakeHost([...GIT_BASE, [OPEN_PRS, { stdout: searchAnswer([]) }]], {}, 0)
   const c = ctx()
   await addFolder(h.host, c, '/w/web')
   await save(h.host.store, { ...TRACKED_4, stage: 'cleaned', updatedAt: 1_000 })
@@ -227,7 +228,7 @@ test('cleaned: reaches the pane for one minute (its check), then never again', a
 })
 
 test('failed: Forget removes the PR from the store and the band', async () => {
-  const h = fakeHost([...GIT_BASE, [/^gh pr list/, { stdout: '[]' }]])
+  const h = fakeHost([...GIT_BASE, [OPEN_PRS, { stdout: searchAnswer([]) }]])
   const c = ctx()
   await addFolder(h.host, c, '/w/web')
   await save(h.host.store, { ...TRACKED_4, stage: 'failed', reason: 'boom' })
@@ -250,7 +251,7 @@ test('Forget refused outside failed (the PR may have moved on meanwhile)', async
 // --- A manual deploy is never launched twice ---
 
 const DEPLOYS_AND_CLEANS: [RegExp, Answer][] = [
-  [/^gh pr list/, { stdout: '[]' }],
+  [OPEN_PRS, { stdout: searchAnswer([]) }],
   [/^gh pr view 4/, { stdout: JSON.stringify(MERGED_EC2) }],
   [/pull --ff-only/, {}],
   [/worktree list --porcelain/, { stdout: TREE_X }],
@@ -372,7 +373,7 @@ test('tracked PR changed by another session between the read and the lock: nothi
 })
 
 test('an unchanged open PR is not rewritten', async () => {
-  const h = fakeHost([...GIT_BASE, [/^gh pr list/, { stdout: JSON.stringify([PR_OPEN]) }], [/^gh pr view 4/, { stdout: JSON.stringify({ ...PR_OPEN, files: [] }) }]], {}, 60_000)
+  const h = fakeHost([...GIT_BASE, [OPEN_PRS, { stdout: searchAnswer([PR_OPEN]) }], [/^gh pr view 4/, { stdout: JSON.stringify({ ...PR_OPEN, files: [] }) }]], {}, 60_000)
   const c = ctx()
   await addFolder(h.host, c, '/w/web')
   await save(h.host.store, TRACKED_4)
@@ -419,7 +420,7 @@ test('Clean up button: the PR changed stage between the read and the lock, nothi
 
 test('new head of an open PR: noted, unless another session moved it on meanwhile', async () => {
   const pushed = { ...PR_OPEN, headRefOid: 'tip2', files: [] }
-  const h = fakeHost([...GIT_BASE, [/^gh pr list/, { stdout: '[]' }], [/^gh pr view 4/, { stdout: JSON.stringify(pushed) }]])
+  const h = fakeHost([...GIT_BASE, [OPEN_PRS, { stdout: searchAnswer([]) }], [/^gh pr view 4/, { stdout: JSON.stringify(pushed) }]])
   const c = ctx()
   await addFolder(h.host, c, '/w/web')
   await save(h.host.store, TRACKED_4)
@@ -430,7 +431,7 @@ test('new head of an open PR: noted, unless another session moved it on meanwhil
   const h2 = fakeHost([
     [/^gh pr view 4/, () => (h2.store.set('tracked:acme/web#4', movedOn), { stdout: JSON.stringify(pushed) })],
     ...GIT_BASE,
-    [/^gh pr list/, { stdout: '[]' }],
+    [OPEN_PRS, { stdout: searchAnswer([]) }],
   ])
   const c2 = ctx()
   await addFolder(h2.host, c2, '/w/web')
@@ -442,7 +443,7 @@ test('new head of an open PR: noted, unless another session moved it on meanwhil
 test('English: notifications, clean up and forget messages', async () => {
   const en = texts('en')
   const merged = { ...PR_OPEN, state: 'MERGED', mergeCommit: { oid: 'm' }, files: [{ path: 'ec2/a' }, { path: 'mac/b' }] }
-  const h = fakeHost([...GIT_BASE, [/^gh pr list/, { stdout: '[]' }], [/^gh pr view 4/, { stdout: JSON.stringify(merged) }], [/^rm -rf/, {}]])
+  const h = fakeHost([...GIT_BASE, [OPEN_PRS, { stdout: searchAnswer([]) }], [/^gh pr view 4/, { stdout: JSON.stringify(merged) }], [/^rm -rf/, {}]])
   const c = { ...ctx(), t: en }
   await addFolder(h.host, c, '/w/web')
   await save(h.host.store, { ...TRACKED_4, stage: 'open' })
@@ -458,7 +459,7 @@ test('a PR the tracking knows is merged never shows as open, even from a stale o
   const merged = { ...PR_OPEN, state: 'MERGED', mergeCommit: { oid: 'm' }, files: [{ path: 'ec2/a.py' }] }
   const h = fakeHost([
     ...GIT_BASE,
-    [/^gh pr list/, { stdout: JSON.stringify([PR_OPEN]) }], // GitHub or the shared cache still lists it as open
+    [OPEN_PRS, { stdout: searchAnswer([PR_OPEN]) }], // GitHub or the shared cache still lists it as open
     [/^gh pr view 4/, { stdout: JSON.stringify(merged) }],
     [/^gh run list/, { stdout: '[]' }],
   ])
@@ -477,7 +478,7 @@ test('the local branch of a merged PR is not shown as a branch without PR', asyn
     ...GIT_BASE.filter(([re]) => !/for-each-ref/.test(String(re)) && !/rev-list/.test(String(re))),
     [/for-each-ref/, { stdout: 'feat/x\torigin/feat/x\t\t/w/web/.worktrees/x\nfeat/y\t\t\t\n' }],
     [/rev-list --count/, { stdout: '2\n' }],
-    [/^gh pr list/, { stdout: '[]' }],
+    [OPEN_PRS, { stdout: searchAnswer([]) }],
     [/^gh pr view 4/, { stdout: JSON.stringify(merged) }],
     [/^gh run list/, { stdout: '[]' }],
   ])
@@ -494,7 +495,7 @@ test('a repo without a rule nor workflow: a local project, deployed at once, and
   const h = fakeHost([
     ...GIT_BASE.map(([re, answer]): [RegExp, Answer] =>
       /remote get-url/.test(String(re)) ? [re, { stdout: 'https://github.com/acme/sandbox.git\n' }] : [re, answer]),
-    [/^gh pr list/, { stdout: '[]' }],
+    [OPEN_PRS, { stdout: searchAnswer([]) }],
     [/^gh pr view 4/, { stdout: JSON.stringify(merged) }],
     [/^ls -1 \/w\/web\/.github\/workflows/, { exitCode: 1 }],
   ])
@@ -515,7 +516,7 @@ test('a local branch stacked on an open PR is linked to it, and the PR takes its
     [/rev-list --count origin\/main\.\.feat\//, { stdout: '3\n' }],
     [/merge-base --is-ancestor tip feat\/y$/, {}], // feat/y contains the PR's head
     ...GIT_BASE,
-    [/^gh pr list/, { stdout: JSON.stringify([PR_OPEN]) }],
+    [OPEN_PRS, { stdout: searchAnswer([PR_OPEN]) }],
     [/^gh pr view 4/, { stdout: JSON.stringify({ ...PR_OPEN, files: [] }) }],
   ])
   const c = { ...ctx(), cwd: '/w/web/.worktrees/y' }
@@ -539,7 +540,7 @@ test('a PR is linked to its local branch even under another name: same tip, or t
     [/for-each-ref/, { stdout: refs + '\n' }],
     [/rev-list --count origin\/main\.\./, { stdout: '1\n' }],
     ...GIT_BASE,
-    [/^gh pr list/, { stdout: JSON.stringify([PR_OPEN, prQ]) }],
+    [OPEN_PRS, { stdout: searchAnswer([PR_OPEN, prQ]) }],
     [/^gh pr view/, { stdout: JSON.stringify({ ...PR_OPEN, files: [] }) }],
   ])
   const c = ctx()
@@ -561,7 +562,7 @@ const MAIN_ONLY = 'worktree /w/web\nHEAD a\nbranch refs/heads/main\n'
 test('cleanup doubt whose tree and branch are gone: cleaned after the delay, not before', async () => {
   const h = fakeHost([
     ...GIT_BASE,
-    [/^gh pr list/, { stdout: '[]' }],
+    [OPEN_PRS, { stdout: searchAnswer([]) }],
     [/worktree list --porcelain/, { stdout: MAIN_ONLY }],
     [/worktree prune/, {}],
     [/branch -D/, { exitCode: 1, stderr: "error: branch 'feat/x' not found." }],
@@ -583,7 +584,7 @@ test('cleanup doubt whose tree and branch are gone: cleaned after the delay, not
 test('cleanup doubt with uncommitted files: stays a doubt, its new reason written once, no notification', async () => {
   const h = fakeHost([
     ...GIT_BASE,
-    [/^gh pr list/, { stdout: '[]' }],
+    [OPEN_PRS, { stdout: searchAnswer([]) }],
     [/worktree list --porcelain/, { stdout: TREE_X }],
     [/^test -d/, {}],
     [/status --short/, { stdout: ' M a.py\n' }],
@@ -612,7 +613,7 @@ test('cleanup doubt in a tree another session works in: stays a doubt', async ()
     [
       [/^ls -1/, { stdout: 'other.json\n' }],
       ...GIT_BASE,
-      [/^gh pr list/, { stdout: '[]' }],
+      [OPEN_PRS, { stdout: searchAnswer([]) }],
       [/worktree list --porcelain/, { stdout: TREE_X }],
       [/^test -d/, {}],
       [/status --short/, { stdout: '' }],
@@ -692,7 +693,7 @@ test('with a docs context, a branch that adds a spec shows it on its card', asyn
     [/rev-list --count origin\/main\.\.feat\/a/, { stdout: '2\n' }],
     [/for-each-ref/, { stdout: 'feat/a\t\t\t/w/web/.worktrees/a\tabc\n' }],
     [/diff --name-only --diff-filter=d origin\/main\.\.\.feat\/a/, { stdout: 'docs/specs/2026-10-01-a-design.md\n' }],
-    [/^gh pr list/, { stdout: '[]' }],
+    [OPEN_PRS, { stdout: searchAnswer([]) }],
     ...GIT_BASE,
   ])
   const c: Context = { ...ctx(), docs: { store: fakeHost([]).store, events: [], byBranch: new Map() } }
@@ -701,3 +702,15 @@ test('with a docs context, a branch that adds a spec shows it on its card', asyn
   await tick(h.host, c, a.actions)
   expect(a.published.at(-1)?.trees[0].branches[0].docs?.[0]).toMatchObject({ kind: 'spec', name: 'a', state: 'draft' })
 })
+
+test('the approvals a PR’s base requires reach its card, from the same call as the PR', async () => {
+  const pr = { ...PR_OPEN, reviews: [{ author: { login: 'bob' }, state: 'APPROVED' }], required: 2 }
+  const h = fakeHost([...GIT_BASE, [OPEN_PRS, { stdout: searchAnswer([pr]) }], [/^gh pr view 4/, { stdout: JSON.stringify({ ...PR_OPEN, files: [] }) }]])
+  const c = ctx()
+  await addFolder(h.host, c, '/w/web')
+  const a = actions()
+  await tick(h.host, c, a.actions)
+  expect(a.published[0].trees[0].prs[0]).toMatchObject({ approvals: 1, reviewers: 1, requiredApprovals: 2 })
+  expect(h.calls.filter(x => x.line.startsWith('gh api'))).toHaveLength(1)
+})
+

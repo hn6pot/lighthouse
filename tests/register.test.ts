@@ -1,4 +1,5 @@
 import { expect, mock, test } from 'claude-code/testing'
+import { OPEN_PRS, searchAnswer } from './helpers/open-prs'
 
 test('/lighthouse opens the pane and answers nothing in the thread', { options: { language: 'fr' } }, async ($, on) => {
   // The kit answers neither session.start nor $ calls: we play the engine.
@@ -87,7 +88,7 @@ function engine(on: Parameters<Parameters<typeof test>[1]>[1], files: Record<str
     if (/rev-list --count/.test(line)) return output('0\n')
     if (/worktree list --porcelain/.test(line)) return output(TREE_X)
     if (/rev-parse HEAD/.test(line)) return output('tip\n')
-    if (/^gh pr list/.test(line)) return output(JSON.stringify(prs))
+    if (OPEN_PRS.test(line)) return output(searchAnswer(prs as object[]))
     if (/^gh api repos\//.test(line)) return output('{"allow_squash_merge":true}')
     if (/^ls -1 /.test(line)) {
       const d = argv[2] + '/'
@@ -151,10 +152,10 @@ test('the pane opens on its own once, not at every tick', { options: { language:
 
 const PR_GH = {
   number: 4, title: 'feat: x', url: 'https://github.com/acme/web/pull/4', state: 'OPEN', headRefName: 'feat/x', headRefOid: 'tip',
-  baseRefName: 'main', mergeCommit: null, mergedAt: null, reviewDecision: 'CHANGES_REQUESTED',
+  baseRefName: 'main', mergeCommit: null, mergedAt: null, reviewDecision: 'CHANGES_REQUESTED', required: 1,
   statusCheckRollup: [{ name: 'lint', status: 'COMPLETED', conclusion: 'FAILURE' }], isDraft: false, mergeable: 'MERGEABLE', mergeStateStatus: 'BLOCKED',
 }
-const PR_READY = { ...PR_GH, number: 5, title: 'fix: y', url: 'https://github.com/acme/web/pull/5', headRefName: 'fix/y', headRefOid: 'five', reviewDecision: 'APPROVED', statusCheckRollup: [], mergeStateStatus: 'CLEAN' }
+const PR_READY = { ...PR_GH, number: 5, title: 'fix: y', url: 'https://github.com/acme/web/pull/5', headRefName: 'fix/y', headRefOid: 'five', reviewDecision: 'APPROVED', statusCheckRollup: [], mergeStateStatus: 'CLEAN', reviews: [{ author: { login: 'bob' }, state: 'APPROVED' }] }
 const PANE = { component: 'Pane', requestId: 'lighthouse', props: { title: 'Lighthouse', isFocused: false, bodyColumns: 60, placement: 'dock' } } as never
 
 test('pane: PRs in color and their actions, on the terminal and the Desktop', { options: { language: 'fr' } }, async ($, on) => {
@@ -168,9 +169,9 @@ test('pane: PRs in color and their actions, on the terminal and the Desktop', { 
   await clock.advance(3_000)
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ plugin: 'lighthouse', surface, ...(PANE as object) } as never)
-    expect(await ui.find({ type: 'Text', text: '● Changements demandés' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '● Revue 0/1 · Changements demandés' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '● CI ✗ lint' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '● Revue approuvée' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '● Revue 1/1' })).toBeDefined()
     expect(await ui.find({ key: 'merge-acme/web#4' })).toBeUndefined() // blocked: no merge
     expect(await ui.find({ key: 'comments-acme/web#4' })).toBeDefined()
     await ui.unmount()
@@ -228,7 +229,7 @@ test('a git or gh command starts a tick within seconds, and the base fetch', { o
   await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
   await clock.advance(3_000)
   const ticks = () => lines.filter(l => / for-each-ref /.test(l)).length
-  const ghCalls = () => lines.filter(l => /^gh pr list/.test(l)).length
+  const ghCalls = () => lines.filter(l => OPEN_PRS.test(l)).length
   const fetches = () => lines.filter(l => / fetch /.test(l)).length
   expect(ticks()).toBe(1)
   expect(ghCalls()).toBe(1)
@@ -287,8 +288,8 @@ test('language en: the pane, its buttons and the agent’s instructions in Engli
     expect(await ui.find({ type: 'Text', text: 'main · up to date' })).toBeDefined() // this session: no PR has its worktree here
     expect(await ui.find({ type: 'Text', text: '2 PRs' })).toBeDefined() // they are under « No known session »
     expect((await ui.find({ key: 'toggle-group:unknown' }))?.text).toBe('▼ No known session')
-    expect(await ui.find({ type: 'Text', text: '● Changes requested' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '● Review approved' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '● Review 0/1 · Changes requested' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '● Review 1/1' })).toBeDefined()
     expect((await ui.find({ key: 'comments-acme/web#4' }))?.text).toBe('Address comments')
     expect((await ui.find({ key: 'merge-acme/web#5' }))?.text).toBe('Merge')
     await ui.unmount()
@@ -344,7 +345,7 @@ test('the Refresh button runs a tick at once, asking GitHub and rereading the ba
   await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
   await clock.advance(3_000)
   const ui = await $.ui.mount({ plugin: 'lighthouse', surface: 'desktop', ...(PANE as object) } as never)
-  const ghCalls = () => lines.filter(l => /^gh pr list/.test(l)).length
+  const ghCalls = () => lines.filter(l => OPEN_PRS.test(l)).length
   const fetches = () => lines.filter(l => / fetch /.test(l)).length
   expect([ghCalls(), fetches()]).toEqual([1, 1])
   expect((await ui.find({ key: 'refresh' }))?.text).toBe('↻')
@@ -663,7 +664,7 @@ test('writing a file starts no tick and asks GitHub nothing: the regular tick pi
   await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
   await clock.advance(3_000)
   const ticks = () => lines.filter(l => / for-each-ref /.test(l)).length
-  const ghCalls = () => lines.filter(l => /^gh pr list/.test(l)).length
+  const ghCalls = () => lines.filter(l => OPEN_PRS.test(l)).length
   expect(ticks()).toBe(1)
   await $.tool.call({ tool: 'Edit', tool_use_id: 't1', file_path: '/w/web/src/a.ts' } as never)
   await $.tool.call({ tool: 'Write', tool_use_id: 't2', file_path: '/w/web/docs/specs/a.md' } as never)

@@ -1,9 +1,10 @@
 // PRs, their files, a commit's runs, and the summary of their CI.
 import type { Host } from '../host'
 import type { CiState, PrSummary, ReviewState, Run } from '../model'
+import { countReviews, type GhReview } from './approvals'
 import { ghEnv, ghJson, type GhConfigDirs } from './gh'
 
-type Check = { name?: string; context?: string; status?: string; conclusion?: string | null; state?: string }
+export type Check = { name?: string; context?: string; status?: string; conclusion?: string | null; state?: string }
 
 export type GhPr = {
   number: number
@@ -16,6 +17,8 @@ export type GhPr = {
   mergeCommit: { oid: string } | null
   mergedAt: string | null
   reviewDecision: string | null
+  reviews?: GhReview[]
+  author?: { login: string } | null
   statusCheckRollup: Check[]
   isDraft: boolean
   mergeable: string
@@ -43,7 +46,8 @@ export function ciState(rollup: readonly Check[]): CiState {
 
 const REVIEWS: Record<string, ReviewState> = { APPROVED: 'approved', CHANGES_REQUESTED: 'changes', REVIEW_REQUIRED: 'pending' }
 
-export function summarizePr(pr: GhPr): PrSummary {
+/** `required`: the approvals its base requires, null when unknown. */
+export function summarizePr(pr: GhPr, required: number | null = null): PrSummary {
   return {
     number: pr.number,
     title: pr.title,
@@ -56,6 +60,8 @@ export function summarizePr(pr: GhPr): PrSummary {
       .filter(v => FAILURES.includes((v.conclusion ?? v.state ?? '').toUpperCase()))
       .map(v => v.name ?? v.context ?? '?'),
     review: REVIEWS[pr.reviewDecision ?? ''] ?? 'none',
+    ...countReviews(pr.reviews ?? [], pr.author?.login),
+    ...(required !== null ? { requiredApprovals: required } : {}),
     draft: pr.isDraft,
     conflict: pr.mergeable === 'CONFLICTING',
     behind: pr.mergeStateStatus === 'BEHIND',
@@ -66,11 +72,8 @@ export function summarizePr(pr: GhPr): PrSummary {
   }
 }
 
-export const myOpenPrs = (host: Host, dirs: GhConfigDirs, slug: string) =>
-  ghJson<GhPr[]>(host, dirs, slug, ['pr', 'list', '--author', '@me', '--state', 'open', '--json', FIELDS])
-
 export const prDetail = (host: Host, dirs: GhConfigDirs, slug: string, number: number) =>
-  ghJson<GhPr & { files: { path: string }[]; author?: { login: string } }>(host, dirs, slug, ['pr', 'view', String(number), '--json', `${FIELDS},files,author`])
+  ghJson<GhPr & { files: { path: string }[] }>(host, dirs, slug, ['pr', 'view', String(number), '--json', `${FIELDS},files,author`])
 
 /** My login on the gh account that goes with the repo; `cache` keeps the answer per account for the session. */
 export async function myLogin(host: Host, dirs: GhConfigDirs, slug: string, cache: Map<string, string>): Promise<string> {

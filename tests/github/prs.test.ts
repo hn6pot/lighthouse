@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { ciState, commitRuns, myOpenPrs, prDetail, summarizePr, type GhPr } from '../../hooks/github/prs'
+import { ciState, commitRuns, prDetail, summarizePr, type GhPr } from '../../hooks/github/prs'
 import { fakeHost } from '../helpers/fake-host'
 
 test('ciState', () => {
@@ -8,13 +8,6 @@ test('ciState', () => {
   expect(ciState([{ status: 'IN_PROGRESS', conclusion: null }, { status: 'COMPLETED', conclusion: 'SUCCESS' }])).toBe('pending')
   expect(ciState([{ status: 'COMPLETED', conclusion: 'FAILURE' }, { status: 'IN_PROGRESS', conclusion: null }])).toBe('failing')
   expect(ciState([{ state: 'SUCCESS' }])).toBe('ok')
-})
-
-test('myOpenPrs asks for my open PRs with the useful fields', async () => {
-  const { host, calls } = fakeHost([[/^gh pr list/, { stdout: '[]' }]])
-  await myOpenPrs(host, {}, 'acme/x')
-  expect(calls[0].line).toContain('--author @me --state open')
-  expect(calls[0].line).toContain('--json number,title,url,state,headRefName,headRefOid,baseRefName,mergeCommit,mergedAt,reviewDecision,statusCheckRollup,isDraft,mergeable,mergeStateStatus')
 })
 
 test('prDetail includes the files', async () => {
@@ -39,7 +32,7 @@ const PR: GhPr = {
 test('summarizePr: review, draft, conflict, behind, failing checks', () => {
   expect(summarizePr(PR)).toEqual({
     number: 3, title: 'feat: x', url: 'https://github.com/o/r/pull/3', branch: 'feat/x', path: null, head: 'abc',
-    ci: 'none', failedChecks: [], review: 'none', draft: false, conflict: false, behind: false, unpushed: 0,
+    ci: 'none', failedChecks: [], review: 'none', approvals: 0, reviewers: 0, draft: false, conflict: false, behind: false, unpushed: 0,
   })
   expect(summarizePr({ ...PR, reviewDecision: 'APPROVED' }).review).toBe('approved')
   expect(summarizePr({ ...PR, reviewDecision: 'CHANGES_REQUESTED' }).review).toBe('changes')
@@ -54,4 +47,14 @@ test('summarizePr: review, draft, conflict, behind, failing checks', () => {
   ] })
   expect(r.ci).toBe('failing')
   expect(r.failedChecks).toEqual(['lint', 'ci/deploy'])
+})
+
+test('summarizePr: approvals, reviewers and what the base requires', () => {
+  const reviews = [
+    { author: { login: 'bob' }, state: 'APPROVED' },
+    { author: { login: 'carol' }, state: 'COMMENTED' },
+  ]
+  expect(summarizePr({ ...PR, reviews, author: { login: 'me' } }, 2)).toMatchObject({ approvals: 1, reviewers: 2, requiredApprovals: 2 })
+  expect(summarizePr(PR, 0).requiredApprovals).toBe(0)
+  expect('requiredApprovals' in summarizePr(PR, null)).toBe(false)
 })
