@@ -4,7 +4,7 @@ import type { CiState, PrSummary, ReviewState, Run } from '../model'
 import { countReviews, type GhReview } from './approvals'
 import { ghEnv, ghJson, type GhConfigDirs } from './gh'
 
-type Check = { name?: string; context?: string; status?: string; conclusion?: string | null; state?: string }
+export type Check = { name?: string; context?: string; status?: string; conclusion?: string | null; state?: string }
 
 export type GhPr = {
   number: number
@@ -31,7 +31,7 @@ export type GhPr = {
 }
 
 const FIELDS =
-  'number,title,url,state,headRefName,headRefOid,baseRefName,mergeCommit,mergedAt,reviewDecision,statusCheckRollup,isDraft,mergeable,mergeStateStatus,createdAt,updatedAt,additions,deletions,changedFiles,reviews,author'
+  'number,title,url,state,headRefName,headRefOid,baseRefName,mergeCommit,mergedAt,reviewDecision,statusCheckRollup,isDraft,mergeable,mergeStateStatus,createdAt,updatedAt,additions,deletions,changedFiles'
 
 const FAILURES = ['FAILURE', 'ERROR', 'TIMED_OUT', 'CANCELLED']
 
@@ -72,11 +72,8 @@ export function summarizePr(pr: GhPr, required: number | null = null): PrSummary
   }
 }
 
-export const myOpenPrs = (host: Host, dirs: GhConfigDirs, slug: string) =>
-  ghJson<GhPr[]>(host, dirs, slug, ['pr', 'list', '--author', '@me', '--state', 'open', '--json', FIELDS])
-
 export const prDetail = (host: Host, dirs: GhConfigDirs, slug: string, number: number) =>
-  ghJson<GhPr & { files: { path: string }[] }>(host, dirs, slug, ['pr', 'view', String(number), '--json', `${FIELDS},files`])
+  ghJson<GhPr & { files: { path: string }[] }>(host, dirs, slug, ['pr', 'view', String(number), '--json', `${FIELDS},files,author`])
 
 /** My login on the gh account that goes with the repo; `cache` keeps the answer per account for the session. */
 export async function myLogin(host: Host, dirs: GhConfigDirs, slug: string, cache: Map<string, string>): Promise<string> {

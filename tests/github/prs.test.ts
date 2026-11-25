@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { ciState, commitRuns, myOpenPrs, prDetail, summarizePr, type GhPr } from '../../hooks/github/prs'
+import { ciState, commitRuns, prDetail, summarizePr, type GhPr } from '../../hooks/github/prs'
 import { fakeHost } from '../helpers/fake-host'
 
 test('ciState', () => {
@@ -8,13 +8,6 @@ test('ciState', () => {
   expect(ciState([{ status: 'IN_PROGRESS', conclusion: null }, { status: 'COMPLETED', conclusion: 'SUCCESS' }])).toBe('pending')
   expect(ciState([{ status: 'COMPLETED', conclusion: 'FAILURE' }, { status: 'IN_PROGRESS', conclusion: null }])).toBe('failing')
   expect(ciState([{ state: 'SUCCESS' }])).toBe('ok')
-})
-
-test('myOpenPrs asks for my open PRs with the useful fields', async () => {
-  const { host, calls } = fakeHost([[/^gh pr list/, { stdout: '[]' }]])
-  await myOpenPrs(host, {}, 'acme/x')
-  expect(calls[0].line).toContain('--author @me --state open')
-  expect(calls[0].line).toContain('--json number,title,url,state,headRefName,headRefOid,baseRefName,mergeCommit,mergedAt,reviewDecision,statusCheckRollup,isDraft,mergeable,mergeStateStatus,createdAt,updatedAt,additions,deletions,changedFiles,reviews,author')
 })
 
 test('prDetail includes the files', async () => {

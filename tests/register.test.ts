@@ -1,4 +1,5 @@
 import { expect, mock, test } from 'claude-code/testing'
+import { OPEN_PRS, searchAnswer } from './helpers/open-prs'
 
 test('/lighthouse opens the pane and answers nothing in the thread', { options: { language: 'fr' } }, async ($, on) => {
   // The kit answers neither session.start nor $ calls: we play the engine.
@@ -87,7 +88,7 @@ function engine(on: Parameters<Parameters<typeof test>[1]>[1], files: Record<str
     if (/rev-list --count/.test(line)) return output('0\n')
     if (/worktree list --porcelain/.test(line)) return output(TREE_X)
     if (/rev-parse HEAD/.test(line)) return output('tip\n')
-    if (/^gh pr list/.test(line)) return output(JSON.stringify(prs))
+    if (OPEN_PRS.test(line)) return output(searchAnswer(prs as object[]))
     if (/^gh api repos\//.test(line)) return output('{"allow_squash_merge":true}')
     if (/^ls -1 /.test(line)) {
       const d = argv[2] + '/'
@@ -151,17 +152,15 @@ test('the pane opens on its own once, not at every tick', { options: { language:
 
 const PR_GH = {
   number: 4, title: 'feat: x', url: 'https://github.com/acme/web/pull/4', state: 'OPEN', headRefName: 'feat/x', headRefOid: 'tip',
-  baseRefName: 'main', mergeCommit: null, mergedAt: null, reviewDecision: 'CHANGES_REQUESTED',
+  baseRefName: 'main', mergeCommit: null, mergedAt: null, reviewDecision: 'CHANGES_REQUESTED', required: 1,
   statusCheckRollup: [{ name: 'lint', status: 'COMPLETED', conclusion: 'FAILURE' }], isDraft: false, mergeable: 'MERGEABLE', mergeStateStatus: 'BLOCKED',
 }
 const PR_READY = { ...PR_GH, number: 5, title: 'fix: y', url: 'https://github.com/acme/web/pull/5', headRefName: 'fix/y', headRefOid: 'five', reviewDecision: 'APPROVED', statusCheckRollup: [], mergeStateStatus: 'CLEAN', reviews: [{ author: { login: 'bob' }, state: 'APPROVED' }] }
-/** The base asks for one approval. */
-const ONE_REQUIRED: [RegExp, string][] = [[/^gh api repos\/acme\/web\/rules\/branches\/main$/, '[{"type":"pull_request","parameters":{"required_approving_review_count":1}}]']]
 const PANE = { component: 'Pane', requestId: 'lighthouse', props: { title: 'Lighthouse', isFocused: false, bodyColumns: 60, placement: 'dock' } } as never
 
 test('pane: PRs in color and their actions, on the terminal and the Desktop', { options: { language: 'fr' } }, async ($, on) => {
   const clock = mock.clock(on)
-  const lines = engine(on, {}, { cwd: '/w/web' }, undefined, [PR_GH, PR_READY], ONE_REQUIRED)
+  const lines = engine(on, {}, { cwd: '/w/web' }, undefined, [PR_GH, PR_READY])
   const agents: { prompt: string; cwd?: string; description?: string }[] = []
   on('agent.spawn', async (_$, e) => (agents.push(e), { model: 'm', agentId: `ag${agents.length}` }) as never)
   on('ui.toast', async () => ({ value: undefined }) as never)
@@ -230,7 +229,7 @@ test('a git or gh command starts a tick within seconds, and the base fetch', { o
   await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
   await clock.advance(3_000)
   const ticks = () => lines.filter(l => / for-each-ref /.test(l)).length
-  const ghCalls = () => lines.filter(l => /^gh pr list/.test(l)).length
+  const ghCalls = () => lines.filter(l => OPEN_PRS.test(l)).length
   const fetches = () => lines.filter(l => / fetch /.test(l)).length
   expect(ticks()).toBe(1)
   expect(ghCalls()).toBe(1)
@@ -275,7 +274,7 @@ test('during a git command of Claude’s, its ⟳ line; during its turn, « Clau
 
 test('language en: the pane, its buttons and the agent’s instructions in English', { options: { language: 'en' } }, async ($, on) => {
   const clock = mock.clock(on)
-  const lines = engine(on, {}, { cwd: '/w/web' }, undefined, [PR_GH, PR_READY], ONE_REQUIRED)
+  const lines = engine(on, {}, { cwd: '/w/web' }, undefined, [PR_GH, PR_READY])
   const agents: { prompt: string; description?: string }[] = []
   on('agent.spawn', async (_$, e) => (agents.push(e), { model: 'm', agentId: `ag${agents.length}` }) as never)
   on('ui.toast', async () => ({ value: undefined }) as never)
@@ -346,7 +345,7 @@ test('the Refresh button runs a tick at once, asking GitHub and rereading the ba
   await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
   await clock.advance(3_000)
   const ui = await $.ui.mount({ plugin: 'lighthouse', surface: 'desktop', ...(PANE as object) } as never)
-  const ghCalls = () => lines.filter(l => /^gh pr list/.test(l)).length
+  const ghCalls = () => lines.filter(l => OPEN_PRS.test(l)).length
   const fetches = () => lines.filter(l => / fetch /.test(l)).length
   expect([ghCalls(), fetches()]).toEqual([1, 1])
   expect((await ui.find({ key: 'refresh' }))?.text).toBe('↻')
@@ -665,7 +664,7 @@ test('writing a file starts no tick and asks GitHub nothing: the regular tick pi
   await $.session.start({ cwd: '/w/web', surface: null, isInteractive: true } as never)
   await clock.advance(3_000)
   const ticks = () => lines.filter(l => / for-each-ref /.test(l)).length
-  const ghCalls = () => lines.filter(l => /^gh pr list/.test(l)).length
+  const ghCalls = () => lines.filter(l => OPEN_PRS.test(l)).length
   expect(ticks()).toBe(1)
   await $.tool.call({ tool: 'Edit', tool_use_id: 't1', file_path: '/w/web/src/a.ts' } as never)
   await $.tool.call({ tool: 'Write', tool_use_id: 't2', file_path: '/w/web/docs/specs/a.md' } as never)

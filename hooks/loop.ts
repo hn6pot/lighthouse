@@ -12,8 +12,8 @@ import { prFacts, reviewFacts } from './ui/lines'
 import { ownerOf } from './sessions/owner'
 import { desktopIndex, type DesktopSession } from './sessions/desktop'
 import { liveSessions } from './sessions/registry'
-import { commitRuns, myLogin, myOpenPrs, prDetail, summarizePr } from './github/prs'
-import { requiredApprovals, REQUIRED_FRESH_MS } from './github/required'
+import { myOpenPrs } from './github/open-prs'
+import { commitRuns, myLogin, prDetail, summarizePr } from './github/prs'
 import { reviewRequests } from './github/reviews'
 import { collectReleases } from './release/collect'
 import { docsOf, refreshDocs, type DocsContext } from './docs/refresh'
@@ -122,19 +122,12 @@ async function inspectRepo(host: Host, ctx: Context, repo: Repo, now: number): P
       locals.find(b => b.name === pr.headRefName) ??
       locals.find(b => b.upstream === `origin/${pr.headRefName}`) ??
       locals.find(b => b.tip === pr.headRefOid)
-    // The approvals each base requires, rarely asked again; unknown when gh fails.
-    const required = new Map<string, number | null>()
-    for (const base of new Set(open.map(pr => pr.baseRefName))) {
-      const maxAge = ctx.ghMaxAge === undefined ? undefined : REQUIRED_FRESH_MS
-      const ask = () => requiredApprovals(host, ctx.config.ghConfigDirs, slug, base)
-      required.set(base, await cached(host, `required:${slug}:${base}`, maxAge, ask).catch(() => null))
-    }
     const linked = new Set<string>()
     summary.prs = open.map(pr => {
       const local = localOf(pr)
       if (local) linked.add(local.name)
       const unpushed = !local ? 0 : local.name === pr.headRefName ? local.unpushed : local.upstream === `origin/${pr.headRefName}` ? (local.aheadOfUpstream ?? 0) : 0
-      return { ...summarizePr(pr, required.get(pr.baseRefName) ?? null), path: local?.path ?? null, unpushed, ...(local ? { localBranch: local.name } : {}) }
+      return { ...summarizePr(pr, pr.required ?? null /* a list cached before the count existed */), path: local?.path ?? null, unpushed, ...(local ? { localBranch: local.name } : {}) }
     })
     summary.branches = locals.filter(b => !linked.has(b.name) && !open.some(pr => pr.headRefName === b.name))
     // A branch started from an open PR (it contains its head) belongs with that PR.
