@@ -36,7 +36,7 @@ test('commandActivity in English', () => {
 
 const P: PrSummary = {
   number: 4, title: 't', url: 'u', branch: 'feat/x', path: '/w/web/.worktrees/x', head: 'a', ci: 'ok', failedChecks: [],
-  review: 'none', draft: false, conflict: false, behind: false, unpushed: 0,
+  review: 'none', approvals: 0, reviewers: 0, draft: false, conflict: false, behind: false, unpushed: 0,
 }
 const A: TreeState = {
   root: '/w/web', name: 'web', slug: 'acme/web', branch: 'main', base: 'main', behind: 0, uncommitted: 0, prs: [P],

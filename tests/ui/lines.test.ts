@@ -6,7 +6,7 @@ import { actionPrompt, branchActions, branchChips, branchPrompt, eventLine, layo
 const t = texts('fr')
 const P: PrSummary = {
   number: 98, title: 'feat: x', url: 'https://github.com/w/api/pull/98', branch: 'feat/x', path: null, head: 'abc',
-  ci: 'ok', failedChecks: [], review: 'approved', draft: false, conflict: false, behind: false, unpushed: 0,
+  ci: 'ok', failedChecks: [], review: 'approved', approvals: 1, reviewers: 1, requiredApprovals: 1, draft: false, conflict: false, behind: false, unpushed: 0,
 }
 const A: TreeState = { root: '/r', name: 'api', slug: 'w/api', branch: 'feat/x', base: 'production', behind: 0, uncommitted: 0, prs: [], branches: [] }
 
@@ -18,24 +18,45 @@ test('repo header: behind, uncommitted, number of PRs', () => {
 
 test('chips: review, CI, draft, conflict, behind, in color', () => {
   expect(prChips(P, t)).toEqual([
-    { text: 'Revue approuvée', color: 'success' },
+    { text: 'Revue 1/1', color: 'success' },
     { text: 'CI ✓', color: 'success' },
   ])
-  expect(prChips({ ...P, draft: true, review: 'pending', ci: 'pending' }, t)).toEqual([
+  expect(prChips({ ...P, draft: true, review: 'pending', approvals: 0, reviewers: 0, ci: 'pending' }, t)).toEqual([
     { text: 'Brouillon', color: 'subtle' },
-    { text: 'Revue en attente', color: 'warning' },
+    { text: 'Revue 0/1', color: 'warning' },
     { text: 'CI en cours', color: 'warning' },
   ])
   expect(prChips({ ...P, review: 'changes', ci: 'failing', failedChecks: ['lint', 'tests'], conflict: true, behind: true }, t)).toEqual([
-    { text: 'Changements demandés', color: 'error' },
+    { text: 'Revue 1/1 · Changements demandés', color: 'error' },
     { text: 'CI ✗ lint, tests', color: 'error' },
     { text: 'Conflits', color: 'error' },
     { text: 'En retard sur la base', color: 'warning' },
   ])
-  expect(prChips({ ...P, review: 'none', ci: 'none' }, t)).toEqual([
+  expect(prChips({ ...P, review: 'none', approvals: 0, reviewers: 0, requiredApprovals: 0, ci: 'none' }, t)).toEqual([
     { text: 'Sans revue requise', color: 'subtle' },
     { text: 'Sans CI', color: 'subtle' },
   ])
+})
+
+test('review chip: approvals against what the base requires, in color', () => {
+  const chip = (p: Partial<PrSummary>, texts = t) => prChips({ ...P, ...p }, texts)[0]
+  expect(chip({ review: 'pending', approvals: 1, reviewers: 1, requiredApprovals: 2 })).toEqual({ text: 'Revue 1/2', color: 'warning' })
+  expect(chip({ review: 'approved', approvals: 2, reviewers: 3, requiredApprovals: 2 })).toEqual({ text: 'Revue 2/2', color: 'success' })
+  // Someone commented without approving: told apart from a PR nobody looked at.
+  expect(chip({ review: 'pending', approvals: 0, reviewers: 1 })).toEqual({ text: 'Revue 0/1 · commentée', color: 'warning' })
+  // GitHub will not tell what the base requires.
+  expect(chip({ review: 'pending', approvals: 1, requiredApprovals: undefined })).toEqual({ text: 'Revue 1/?', color: 'warning' })
+  // Nothing required: the approvals alone, or today's words when there are none.
+  expect(chip({ review: 'none', approvals: 2, reviewers: 2, requiredApprovals: 0 })).toEqual({ text: '2 approbations', color: 'success' })
+  expect(chip({ review: 'none', approvals: 0, reviewers: 1, requiredApprovals: 0 })).toEqual({ text: 'Sans revue requise · commentée', color: 'subtle' })
+  expect(chip({ review: 'changes', approvals: 0, reviewers: 1, requiredApprovals: undefined })).toEqual({ text: 'Changements demandés', color: 'error' })
+  // No decision from GitHub, but the base asks for more approvals than there are.
+  expect(chip({ review: 'none', approvals: 1, reviewers: 1, requiredApprovals: 2 })).toEqual({ text: 'Revue 1/2', color: 'warning' })
+  expect(chip({ review: 'pending', approvals: 1, reviewers: 1, requiredApprovals: 2 }, texts('en'))).toEqual({ text: 'Review 1/2', color: 'warning' })
+  expect(chip({ review: 'none', approvals: 1, reviewers: 1, requiredApprovals: 0 }, texts('en'))).toEqual({ text: '1 approval', color: 'success' })
+  // A pane saved before the counts existed.
+  const { approvals: _a, reviewers: _r, requiredApprovals: _q, ...old } = P
+  expect(prChips({ ...(old as PrSummary), review: 'none' }, t)[0]).toEqual({ text: 'Sans revue requise', color: 'subtle' })
 })
 
 test('actions: merge only if nothing blocks', () => {
@@ -123,7 +144,7 @@ test('in English: header, chips, event line, instruction', () => {
   expect(repoHeader({ ...A, behind: 12, uncommitted: 2, prs: [P, P], branches: [B] }, en)).toBe('api · feat/x ↓12 · ⚠ 2 uncommitted · 2 PRs · 1 without PR')
   expect(repoHeader({ ...A, branch: 'main' }, en)).toBe('api · main · up to date')
   expect(prChips({ ...P, review: 'changes', ci: 'failing', failedChecks: ['lint'], unpushed: 1 }, en)).toEqual([
-    { text: 'Changes requested', color: 'error' },
+    { text: 'Review 1/1 · Changes requested', color: 'error' },
     { text: 'CI ✗ lint', color: 'error' },
     { text: '↑1 unpushed', color: 'warning' },
   ])
@@ -225,6 +246,8 @@ test('progress of an open PR: review, CI, merge, then deploy and clean up still 
   ])
   expect(prProgress({ ...P, review: 'changes', ci: 'pending' }, en).map(s => s.state)).toEqual(['bad', 'now', 'todo', 'todo', 'todo'])
   expect(prProgress({ ...P, ci: 'failing' }, en)[1]).toEqual({ label: 'CI', state: 'bad' })
+  // The review step follows the chip's color, counts included.
+  expect(prProgress({ ...P, review: 'none', approvals: 1, requiredApprovals: 2 }, en)[0]).toEqual({ label: 'Review', state: 'now' })
 })
 
 test('progress of a merged PR follows its deploy and its cleanup', () => {

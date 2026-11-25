@@ -154,12 +154,14 @@ const PR_GH = {
   baseRefName: 'main', mergeCommit: null, mergedAt: null, reviewDecision: 'CHANGES_REQUESTED',
   statusCheckRollup: [{ name: 'lint', status: 'COMPLETED', conclusion: 'FAILURE' }], isDraft: false, mergeable: 'MERGEABLE', mergeStateStatus: 'BLOCKED',
 }
-const PR_READY = { ...PR_GH, number: 5, title: 'fix: y', url: 'https://github.com/acme/web/pull/5', headRefName: 'fix/y', headRefOid: 'five', reviewDecision: 'APPROVED', statusCheckRollup: [], mergeStateStatus: 'CLEAN' }
+const PR_READY = { ...PR_GH, number: 5, title: 'fix: y', url: 'https://github.com/acme/web/pull/5', headRefName: 'fix/y', headRefOid: 'five', reviewDecision: 'APPROVED', statusCheckRollup: [], mergeStateStatus: 'CLEAN', reviews: [{ author: { login: 'bob' }, state: 'APPROVED' }] }
+/** The base asks for one approval. */
+const ONE_REQUIRED: [RegExp, string][] = [[/^gh api repos\/acme\/web\/rules\/branches\/main$/, '[{"type":"pull_request","parameters":{"required_approving_review_count":1}}]']]
 const PANE = { component: 'Pane', requestId: 'lighthouse', props: { title: 'Lighthouse', isFocused: false, bodyColumns: 60, placement: 'dock' } } as never
 
 test('pane: PRs in color and their actions, on the terminal and the Desktop', { options: { language: 'fr' } }, async ($, on) => {
   const clock = mock.clock(on)
-  const lines = engine(on, {}, { cwd: '/w/web' }, undefined, [PR_GH, PR_READY])
+  const lines = engine(on, {}, { cwd: '/w/web' }, undefined, [PR_GH, PR_READY], ONE_REQUIRED)
   const agents: { prompt: string; cwd?: string; description?: string }[] = []
   on('agent.spawn', async (_$, e) => (agents.push(e), { model: 'm', agentId: `ag${agents.length}` }) as never)
   on('ui.toast', async () => ({ value: undefined }) as never)
@@ -168,9 +170,9 @@ test('pane: PRs in color and their actions, on the terminal and the Desktop', { 
   await clock.advance(3_000)
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ plugin: 'lighthouse', surface, ...(PANE as object) } as never)
-    expect(await ui.find({ type: 'Text', text: '● Changements demandés' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '● Revue 0/1 · Changements demandés' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '● CI ✗ lint' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '● Revue approuvée' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '● Revue 1/1' })).toBeDefined()
     expect(await ui.find({ key: 'merge-acme/web#4' })).toBeUndefined() // blocked: no merge
     expect(await ui.find({ key: 'comments-acme/web#4' })).toBeDefined()
     await ui.unmount()
@@ -273,7 +275,7 @@ test('during a git command of Claude’s, its ⟳ line; during its turn, « Clau
 
 test('language en: the pane, its buttons and the agent’s instructions in English', { options: { language: 'en' } }, async ($, on) => {
   const clock = mock.clock(on)
-  const lines = engine(on, {}, { cwd: '/w/web' }, undefined, [PR_GH, PR_READY])
+  const lines = engine(on, {}, { cwd: '/w/web' }, undefined, [PR_GH, PR_READY], ONE_REQUIRED)
   const agents: { prompt: string; description?: string }[] = []
   on('agent.spawn', async (_$, e) => (agents.push(e), { model: 'm', agentId: `ag${agents.length}` }) as never)
   on('ui.toast', async () => ({ value: undefined }) as never)
@@ -287,8 +289,8 @@ test('language en: the pane, its buttons and the agent’s instructions in Engli
     expect(await ui.find({ type: 'Text', text: 'main · up to date' })).toBeDefined() // this session: no PR has its worktree here
     expect(await ui.find({ type: 'Text', text: '2 PRs' })).toBeDefined() // they are under « No known session »
     expect((await ui.find({ key: 'toggle-group:unknown' }))?.text).toBe('▼ No known session')
-    expect(await ui.find({ type: 'Text', text: '● Changes requested' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '● Review approved' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '● Review 0/1 · Changes requested' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '● Review 1/1' })).toBeDefined()
     expect((await ui.find({ key: 'comments-acme/web#4' }))?.text).toBe('Address comments')
     expect((await ui.find({ key: 'merge-acme/web#5' }))?.text).toBe('Merge')
     await ui.unmount()

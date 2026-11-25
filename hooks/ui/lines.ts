@@ -38,6 +38,32 @@ export function repoDetails(a: TreeState, t: Texts, branchMax = HEADER_BRANCH_MA
 }
 
 const REVIEW_COLOR: Record<PrSummary['review'], Color> = { approved: 'success', changes: 'error', pending: 'warning', none: 'subtle' }
+
+/** GitHub's review decision, or, when it gives none, what the approvals say against the base's requirement. */
+function reviewStanding(p: PrSummary): PrSummary['review'] {
+  if (p.review !== 'none') return p.review
+  const approvals = p.approvals ?? 0 // absent from a pane saved before the count existed
+  const required = p.requiredApprovals ?? 0
+  return approvals >= required && approvals > 0 ? 'approved' : required > 0 ? 'pending' : 'none'
+}
+
+/** The review chip: approvals against what the base requires ("Review 1/2"), then what a count does not say. */
+export function reviewText(p: PrSummary, t: Texts): string {
+  const approvals = p.approvals ?? 0
+  const required = p.requiredApprovals
+  const count =
+    required !== undefined && required > 0
+      ? t.chip.reviewCount(approvals, required)
+      : p.review === 'approved' || p.review === 'pending'
+        ? t.chip.reviewCount(approvals, null)
+        : approvals > 0
+          ? t.chip.approvals(approvals)
+          : null
+  const head = count ?? (p.review === 'changes' ? null : t.chip.review.none)
+  // « commented »: someone looked but nobody approved yet, unlike a PR nobody opened.
+  const note = p.review === 'changes' ? t.chip.review.changes : approvals === 0 && (p.reviewers ?? 0) > 0 ? t.chip.commented : null
+  return [head, note].filter(x => x !== null).join(' · ')
+}
 const CI_COLOR: Record<PrSummary['ci'], Color> = { ok: 'success', failing: 'error', pending: 'warning', none: 'subtle' }
 
 export function prChips(p: PrSummary, t: Texts): Chip[] {
@@ -45,7 +71,7 @@ export function prChips(p: PrSummary, t: Texts): Chip[] {
   const ci = p.ci === 'failing' ? [t.chip.ci.failing, named].filter(Boolean).join(' ') : t.chip.ci[p.ci]
   return [
     ...(p.draft ? [{ text: t.chip.draft, color: 'subtle' } as const] : []),
-    { text: t.chip.review[p.review], color: REVIEW_COLOR[p.review] },
+    { text: reviewText(p, t), color: REVIEW_COLOR[reviewStanding(p)] },
     { text: ci, color: CI_COLOR[p.ci] },
     ...(p.conflict ? [{ text: t.chip.conflicts, color: 'error' } as const] : []),
     ...(p.behind ? [{ text: t.chip.behindBase, color: 'warning' } as const] : []),
@@ -228,7 +254,8 @@ const steps = (t: Texts, states: [StepState, StepState, StepState, StepState, St
 
 /** Where an open PR stands: review, CI, then the merge it waits for. */
 export function prProgress(p: PrSummary, t: Texts): Step[] {
-  const review: StepState = p.review === 'changes' ? 'bad' : p.review === 'pending' ? 'now' : 'done'
+  const standing = reviewStanding(p)
+  const review: StepState = standing === 'changes' ? 'bad' : standing === 'pending' ? 'now' : 'done'
   const ci: StepState = p.ci === 'failing' ? 'bad' : p.ci === 'pending' ? 'now' : 'done'
   const merge: StepState = prActions(p).includes('merge') ? 'now' : 'todo'
   return steps(t, [review, ci, merge, 'todo', 'todo'])

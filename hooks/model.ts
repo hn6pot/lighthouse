@@ -88,6 +88,11 @@ export type PrSummary = {
   /** Failing checks, by name. */
   failedChecks: string[]
   review: ReviewState
+  /** Distinct people whose last say is an approval, and those who left any review (its author left out). */
+  approvals: number
+  reviewers: number
+  /** The approvals its base branch requires (rulesets, else protection): absent when GitHub will not tell. */
+  requiredApprovals?: number
   draft: boolean
   conflict: boolean
   /** The base moved on since the branch (GitHub: BEHIND). */

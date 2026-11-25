@@ -701,3 +701,37 @@ test('with a docs context, a branch that adds a spec shows it on its card', asyn
   await tick(h.host, c, a.actions)
   expect(a.published.at(-1)?.trees[0].branches[0].docs?.[0]).toMatchObject({ kind: 'spec', name: 'a', state: 'draft' })
 })
+
+test('the approvals a PR’s base requires reach its card, asked once an hour per repo and base', async () => {
+  const pr = { ...PR_OPEN, reviews: [{ author: { login: 'bob' }, state: 'APPROVED' }] }
+  const h = fakeHost([
+    ...GIT_BASE,
+    [/^gh pr list/, { stdout: JSON.stringify([pr]) }],
+    [/^gh pr view 4/, { stdout: JSON.stringify({ ...pr, files: [] }) }],
+    [/^gh api repos\/acme\/web\/rules\/branches\/main$/, { stdout: '[{"type":"pull_request","parameters":{"required_approving_review_count":2}}]' }],
+  ])
+  const c = { ...ctx(), ghMaxAge: 30_000 }
+  await addFolder(h.host, c, '/w/web')
+  const a = actions()
+  await tick(h.host, c, a.actions)
+  expect(a.published[0].trees[0].prs[0]).toMatchObject({ approvals: 1, reviewers: 1, requiredApprovals: 2 })
+  const asked = () => h.calls.filter(x => x.line.includes('/rules/branches/')).length
+  expect(h.calls.find(x => x.line.includes('/rules/branches/'))?.options?.env).toEqual({ GH_CONFIG_DIR: '/Users/me/.config/gh-acme' })
+  h.state.now = 30 * 60_000
+  await tick(h.host, { ...c, ghMaxAge: 0 }, a.actions)
+  expect(asked()).toBe(1)
+  h.state.now = 61 * 60_000
+  await tick(h.host, c, a.actions)
+  expect(asked()).toBe(2)
+})
+
+test('gh failing on the base’s rules: the PR still shows, its requirement unknown', async () => {
+  const h = fakeHost([...GIT_BASE, [/^gh pr list/, { stdout: JSON.stringify([PR_OPEN]) }], [/^gh pr view 4/, { stdout: JSON.stringify({ ...PR_OPEN, files: [] }) }]])
+  const c = ctx()
+  await addFolder(h.host, c, '/w/web')
+  const a = actions()
+  await tick(h.host, c, a.actions)
+  const shown = a.published[0].trees[0].prs[0]
+  expect(shown).toMatchObject({ number: 4, approvals: 0, reviewers: 0 })
+  expect('requiredApprovals' in shown).toBe(false)
+})

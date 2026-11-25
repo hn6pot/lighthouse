@@ -60,7 +60,11 @@ const fr = {
   worktree: ' (worktree)',
 
   chip: {
-    review: { approved: 'Revue approuvée', changes: 'Changements demandés', pending: 'Revue en attente', none: 'Sans revue requise' },
+    review: { changes: 'Changements demandés', none: 'Sans revue requise' },
+    /** Approvals against what the base requires; null: GitHub will not say. */
+    reviewCount: (approved: number, required: number | null) => `Revue ${approved}/${required ?? '?'}`,
+    approvals: (n: number) => `${n} approbation${s(n)}`,
+    commented: 'commentée',
     ci: { ok: 'CI ✓', failing: 'CI ✗', pending: 'CI en cours', none: 'Sans CI' },
     draft: 'Brouillon',
     waitingRelease: 'En attente de release',
@@ -314,7 +318,10 @@ const en: Texts = {
   worktree: ' (worktree)',
 
   chip: {
-    review: { approved: 'Review approved', changes: 'Changes requested', pending: 'Review pending', none: 'No review required' },
+    review: { changes: 'Changes requested', none: 'No review required' },
+    reviewCount: (approved, required) => `Review ${approved}/${required ?? '?'}`,
+    approvals: n => `${n} approval${s(n)}`,
+    commented: 'commented',
     ci: { ok: 'CI ✓', failing: 'CI ✗', pending: 'CI running', none: 'No CI' },
     draft: 'Draft',
     waitingRelease: 'Waiting for release',
